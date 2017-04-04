@@ -40,28 +40,41 @@ def sbox(block):
 
 
 def lbox(block):
+    print(block)
     poly = [3, 4, 12, 8, 12, 4, 3]
+
+    matrix = [[0,3,12,8,3,3,8,12], [3,13,14,0,14,2,5,2], [4,4,12,5,9,1,7,2], [12,1,14,14,10,7,2,0], [8,0,2,7,10,14,14,1], [12,2,7,1,9,5,12,4], [4,2,5,2,14,0,14,13], [3,12,8,3,3,8,12,3]]
 
     lsfr = 8*[0]
     for ialpha in range(4): # degree of alpha
         for ix in range(8): # for each value to be in LSFR state
-            lsfr[ix] |= ((block[ialpha] & (1 << ix)) >> ix) << ialpha
+            lsfr[7-ix] |= ((block[3-ialpha] & (1 << ix)) >> ix) << ialpha
             # TODO check if block0..block3 maps to a0..a3 or a3..a0
+    lsfr = [0,1,0,0,0,0,0,0]
+    print(lsfr)
 
+    lsfrout = 8*[0]
+    for iout in range(8):
+        for iin in range(8):
+            lsfrout[iout] |= lsfr[iin] << matrix[iout][iin]
+        lsfrout[iout] = alpha_reduce(lsfrout[iout])
+    lsfr = lsfrout
 
-    for iclk in range(8): # LSFR clock
-        carry = lsfr[7]
-        next = 8*[0]
-        next[0] = carry
-        for ix in range(7): # for each F[2^4] value in the LSFR
-            next[ix+1] = alpha_reduce(lsfr[ix] + carry << poly[ix])
-        lsfr = next
+    # for iclk in range(8): # LSFR clock
+    #     print(lsfr)
+    #     carry = lsfr[7]
+    #     next = 8*[0]
+    #     next[0] = carry
+    #     for ix in range(7): # for each F[2^4] value in the LSFR
+    #         next[ix+1] = alpha_reduce(lsfr[ix] + (carry << poly[ix]))
+    #     lsfr = next
+    # print(lsfr)
 
     out = 4*[0]
     for ialpha in range(4): # for each value to be in LSFR state
         for ix in range(8): # degree of alpha
-            out[ialpha] |= (lsfr[ix] & (1 << ialpha) >> ialpha) << ix
-
+            out[3-ialpha] |= ((lsfr[7-ix] & (1 << ialpha)) >> ialpha) << ix
+    print(out)
     return out
 
 
@@ -103,4 +116,5 @@ def mysterion(key, input):
 
 
 
-print(mysterion(key1, input1))
+#print(mysterion(key1, input1))
+print(['%02x' % x for x in lbox((0,0,0,0))])
