@@ -1,3 +1,5 @@
+import operator
+
 key1 = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 input1 = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 output1 = [0xDC, 0xB4, 0xFB, 0x8B, 0xA6, 0x1D, 0x81, 0xA1, 0x83, 0x51, 0xB7, 0x6D, 0xF9, 0xF8, 0xCD, 0x47]
@@ -28,7 +30,15 @@ def alpha_reduce(x): # reduce binary-coeff. polynomial of alpha modulo a^4 + a +
 
 
 def roundconst(i): # TODO
-    return rounds[i]
+    block = [0] * 16
+
+    for idx in range(4):
+        lfsr_in = [0, 0, 0, 0, 0, 0, 0, 0]
+        lfsr_in[idx*2 + 1] = i
+        tmp = lbox(lfsr_in)
+        block[4 * idx] = (tmp[0] << 4) | tmp[1]
+
+    return block
 
 
 def sbox(block):
@@ -39,43 +49,48 @@ def sbox(block):
     return (a,b,c,d)
 
 
-def lbox(block):
-    print(block)
+def lbox(lfsr):
     poly = [3, 4, 12, 8, 12, 4, 3]
-
     matrix = [[0,3,12,8,3,3,8,12], [3,13,14,0,14,2,5,2], [4,4,12,5,9,1,7,2], [12,1,14,14,10,7,2,0], [8,0,2,7,10,14,14,1], [12,2,7,1,9,5,12,4], [4,2,5,2,14,0,14,13], [3,12,8,3,3,8,12,3]]
 
-    lsfr = 8*[0]
-    for ialpha in range(4): # degree of alpha
-        for ix in range(8): # for each value to be in LSFR state
-            lsfr[7-ix] |= ((block[3-ialpha] & (1 << ix)) >> ix) << ialpha
-            # TODO check if block0..block3 maps to a0..a3 or a3..a0
-    lsfr = [0,1,0,0,0,0,0,0]
-    print(lsfr)
-
-    lsfrout = 8*[0]
+    lfsrout = 8*[0]
     for iout in range(8):
         for iin in range(8):
-            lsfrout[iout] |= lsfr[iin] << matrix[iout][iin]
-        lsfrout[iout] = alpha_reduce(lsfrout[iout])
-    lsfr = lsfrout
+            lfsrout[iout] ^= lfsr[iin] << matrix[iin][iout]
+        lfsrout[iout] = alpha_reduce(lfsrout[iout])
+    lfsr = lfsrout
+
+    print(['%02x' % x for x in lfsr])
 
     # for iclk in range(8): # LSFR clock
-    #     print(lsfr)
-    #     carry = lsfr[7]
+    #     print(lfsr)
+    #     carry = lfsr[7]
     #     next = 8*[0]
     #     next[0] = carry
     #     for ix in range(7): # for each F[2^4] value in the LSFR
-    #         next[ix+1] = alpha_reduce(lsfr[ix] + (carry << poly[ix]))
-    #     lsfr = next
-    # print(lsfr)
+    #         next[ix+1] = alpha_reduce(lfsr[ix] ^ (carry << poly[ix]))
+    #     lfsr = next
+    # print(lfsr)
 
+    return lfsr
+
+def bitslice(block):
+    lfsr = 8*[0]
+    for ialpha in range(4): # degree of alpha
+        for ix in range(8): # for each value to be in LSFR state
+            lfsr[7-ix] |= ((block[3-ialpha] & (1 << ix)) >> ix) << ialpha
+            # TODO check if block0..block3 maps to a0..a3 or a3..a0
+    # lfsr = [0, 1, 0, 0, 0, 0, 0, 0]
+    print(['%02x' % x for x in lfsr])
+    return lfsr
+
+
+def unbitslice(lfsr):
     out = 4*[0]
     for ialpha in range(4): # for each value to be in LSFR state
         for ix in range(8): # degree of alpha
-            out[3-ialpha] |= ((lsfr[7-ix] & (1 << ialpha)) >> ialpha) << ix
-    print(out)
-    return out
+            out[3-ialpha] |= ((lfsr[7-ix] & (1 << ialpha)) >> ialpha) << ix
+    return tuple(out)
 
 
 def shiftcolumns(blocks):
@@ -93,28 +108,32 @@ def shiftcolumns(blocks):
 def mysterion(key, input):
 
     x = [ki ^ ii for ki,ii in zip(key,input)]
-    blocks = [tuple(xi for i,xi in enumerate(x) if i%4 == iblock) for iblock in range(4)]
+
 
     # for each round
     for r in range(NR):
+        blocks = [tuple(xi for i,xi in enumerate(x) if i%4 == iblock) for iblock in range(4)]
+
         # S boxes
-        for j in range(B):
-            blocks = [sbox(block) for block in blocks]
+        blocks = [sbox(block) for block in blocks]
 
         # L boxes
-        for j in range(B):
-            blocks = [lbox(block) for block in blocks]
+        sliced = [bitslice(block) for block in blocks]
+        tmp = [lbox(lfsr) for lfsr in sliced]
+        blocks = [unbitslice(x) for x in tmp]
 
         # Shift columns
-        for k in range(S):
-            blocks = shiftcolumns(blocks)
+        blocks = shiftcolumns(blocks)
 
-        roundconst = roundconst(r) # round constant
-        x = [xi ^ ki ^ cri for xi,ki,cri in zip(key, input, roundconst)]
+        const = roundconst(r) # round constant
+
+        x = list(blocks[0]) + list(blocks[1]) + list(blocks[2]) + list(blocks[3])
+        x = [xi ^ ki ^ cri for xi,ki,cri in zip(x, key, const)]
 
     return x
 
 
 
-#print(mysterion(key1, input1))
-print(['%02x' % x for x in lbox((0,0,0,0))])
+out = mysterion(key1, input1)
+print(['%02x' % x for x in out])
+# print(['%02x' % x for x in lbox((0x10,0x10,0x10,0x10))])
