@@ -38,6 +38,120 @@ def _gf16_mul(a, b, p=0b10011):
         b >>= 1
     return ret
 
+def _gf16_mul2(a, b):
+    """
+    >>> x1 = [x % 16 for x in range(32)]
+    >>> y1 = []
+    >>> for z in x1:
+    ...     y1.append(_gf16_mul(z, 8))
+
+    >>> x2 = bitslice_32x4([x % 16 for x in range(32)])
+    >>> z = bitslice_32x4([8]*32)
+    >>> y2 = unbitslice_32x4(_gf16_mul2(x2, z))
+
+    >>> y1 == y2
+    True
+    """
+    a = a[:]
+    b = b[:]
+
+    # a, b lists of length 4
+    ret = [0, 0, 0, 0]
+
+    ret[0] ^= a[0] & b[0] # add
+    ret[1] ^= a[1] & b[0]
+    ret[2] ^= a[2] & b[0]
+    ret[3] ^= a[3] & b[0]
+    a[0]   ^= a[3] # reduce
+
+    ret[0] ^= a[3] & b[1] # add
+    ret[1] ^= a[0] & b[1]
+    ret[2] ^= a[1] & b[1]
+    ret[3] ^= a[2] & b[1]
+    a[3]   ^= a[2] # reduce
+
+    ret[0] ^= a[2] & b[2] # add
+    ret[1] ^= a[3] & b[2]
+    ret[2] ^= a[0] & b[2]
+    ret[3] ^= a[1] & b[2]
+    a[2]   ^= a[1] # reduce
+
+    ret[0] ^= a[1] & b[3] # add
+    ret[1] ^= a[2] & b[3]
+    ret[2] ^= a[3] & b[3]
+    ret[3] ^= a[0] & b[3]
+    # reduction unneccesary
+
+    return ret
+
+
+def bitslice_32x4(x):
+    """
+    >>> x = [x % 16 for x in range(32)]
+    >>> y = bitslice_32x4(x)
+    >>> z = unbitslice_32x4(y)
+    >>> x == z
+    True
+    """
+    # x is a list of 32 4-bit numbers
+    ret = [0, 0, 0, 0]
+    for i in range(32):
+        for j in range(4):
+            ret[j] |= ((x[i] & (1 << j)) >> j) << i
+    return ret
+
+def unbitslice_32x4(x):
+    # x is a list of 4 32-bit numbers
+    ret = [0] * 32
+    for i in range(4):
+        for j in range(32):
+            ret[j] |= ((x[i] & (1 << j)) >> j) << i
+    return ret
+
+
+def lbox2(state):
+    """
+    >>> x = [0, 0, 0, 0, 0, 0, 0, 1]
+    >>> y = unbitslice_32x4(lbox2(bitslice_32x4(x * 4)))
+    >>> y == lbox(x) * 4
+    True
+
+    >>> x = [1, 0, 0, 0, 0, 0, 0, 0]
+    >>> y = unbitslice_32x4(lbox2(bitslice_32x4(x * 4)))
+    >>> y == lbox(x) * 4
+    True
+
+    >>> x = list(range(8))
+    >>> y = unbitslice_32x4(lbox2(bitslice_32x4(x * 4)))
+    >>> y == lbox(x) * 4
+    True
+    """
+
+    # state is a list of 4 32-bit numbers (in bitsliced form!)
+    def poly(n):
+        """
+        Function to generate a polynomial in bitsliced format for a specific
+        round. This function is pure and the results are to be hardcoded in
+        the actual product.
+        """
+        poly_norm = [0, 0b1000, 0b0011, 0b1111, 0b0101, 0b1111, 0b0011, 0b1000]
+        # poly_norm = poly_norm[8-n:7] + poly_norm[n:]
+        poly_norm = poly_norm[-n:] + poly_norm[:-n]
+        return bitslice_32x4(poly_norm * 4)
+
+    for clock in range(8):
+        x = _gf16_mul2(poly(clock), state)
+        accs = []
+        for reg in range(4): # reg for register
+            acc = 0
+            for i in range(8):
+                acc ^= x[reg] << i
+            accs.append(acc)
+            # state[reg] &= state[reg] & ~(0x80808080 >> clock)
+            state[reg] ^= (acc & 0x80808080) >> 7 << clock
+
+
+    return state
 
 def lbox(state):
     """
@@ -48,11 +162,16 @@ def lbox(state):
     >>> lbox(list(range(8)))
     [10, 14, 1, 3, 2, 15, 3, 13]
     """
-    poly = [0b1000, 0b0011, 0b1111, 0b0101, 0b1111, 0b0011, 0b1000]
+    poly = [0, 0b1000, 0b0011, 0b1111, 0b0101, 0b1111, 0b0011, 0b1000]
     for clock in range(8):
-        x = state.pop(0)
-        for idx in range(7):
+        x = state[0]
+        acc = []
+        ops = []
+        for idx in range(8):
             x ^= _gf16_mul(state[idx], poly[idx])
+            acc.append(_gf16_mul(state[idx], poly[idx]))
+            ops.append((state[idx], poly[idx]))
+        state.pop(0)
         state.append(x)
     return state
 
