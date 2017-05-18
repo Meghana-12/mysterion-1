@@ -7,7 +7,8 @@ S = 4
 L = 8
 
 
-def roundconst(i): # TODO
+def roundconst(i):
+    # TODO Use constants
     block = [0] * 16
 
     for idx in range(4):
@@ -113,17 +114,17 @@ def lbox2(state):
     """
     >>> x = [0, 0, 0, 0, 0, 0, 0, 1]
     >>> y = unbitslice_32x4(lbox2(bitslice_32x4(x * 4)))
-    >>> y == lbox(x) * 4
+    >>> y == lbox(x) * 4 or (y[:8], lbox(x))
     True
 
     >>> x = [1, 0, 0, 0, 0, 0, 0, 0]
     >>> y = unbitslice_32x4(lbox2(bitslice_32x4(x * 4)))
-    >>> y == lbox(x) * 4
+    >>> y == lbox(x) * 4 or (y[:8], lbox(x))
     True
 
     >>> x = list(range(8))
     >>> y = unbitslice_32x4(lbox2(bitslice_32x4(x * 4)))
-    >>> y == lbox(x) * 4
+    >>> y == lbox(x) * 4 or (y[:8], lbox(x))
     True
     """
 
@@ -135,7 +136,6 @@ def lbox2(state):
         the actual product.
         """
         poly_norm = [0, 0b1000, 0b0011, 0b1111, 0b0101, 0b1111, 0b0011, 0b1000]
-        # poly_norm = poly_norm[8-n:7] + poly_norm[n:]
         poly_norm = poly_norm[-n:] + poly_norm[:-n]
         return bitslice_32x4(poly_norm * 4)
 
@@ -144,11 +144,12 @@ def lbox2(state):
         accs = []
         for reg in range(4): # reg for register
             acc = 0
-            for i in range(8):
+            for i in range(8-clock):
+                acc ^= x[reg] >> i
+            for i in range(clock+1):
                 acc ^= x[reg] << i
             accs.append(acc)
-            # state[reg] &= state[reg] & ~(0x80808080 >> clock)
-            state[reg] ^= (acc & 0x80808080) >> 7 << clock
+            state[reg] ^= acc & (0x0101010101 << clock)
 
 
     return state
