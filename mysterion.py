@@ -20,6 +20,7 @@ def roundconst(i):
 
 
 def sbox(block):
+    """Bitsliced implementation of the s-box"""
     a = (block[0] & block[1]) ^ block[2]
     c = (block[1] | block[2]) ^ block[3]
     d = (a & block[3]) ^ block[0]
@@ -44,43 +45,40 @@ def _gf16_mul2(a, b):
     >>> x1 = [x % 16 for x in range(32)]
     >>> y1 = []
     >>> for z in x1:
-    ...     y1.append(_gf16_mul(z, 8))
+    ...     y1.append(_gf16_mul(z, 7))
 
-    >>> x2 = bitslice_32x4([x % 16 for x in range(32)])
-    >>> z = bitslice_32x4([8]*32)
+    >>> x2 = bitslice_32x4(x1)
+    >>> z = bitslice_32x4([7]*32)
     >>> y2 = unbitslice_32x4(_gf16_mul2(x2, z))
 
     >>> y1 == y2
     True
     """
-    a = a[:]
-    b = b[:]
-
     # a, b lists of length 4
     ret = [0, 0, 0, 0]
 
-    ret[0] ^= a[0] & b[0] # add
-    ret[1] ^= a[1] & b[0]
-    ret[2] ^= a[2] & b[0]
-    ret[3] ^= a[3] & b[0]
-    a[0]   ^= a[3] # reduce
+    ret[0] ^= a[0] & b[3]
+    ret[1] ^= a[1] & b[3]
+    ret[2] ^= a[2] & b[3]
+    ret[3] ^= a[3] & b[3] # add
+    a[3]   ^= a[0] # reduce
 
-    ret[0] ^= a[3] & b[1] # add
-    ret[1] ^= a[0] & b[1]
-    ret[2] ^= a[1] & b[1]
-    ret[3] ^= a[2] & b[1]
-    a[3]   ^= a[2] # reduce
+    ret[0] ^= a[1] & b[2]
+    ret[1] ^= a[2] & b[2]
+    ret[2] ^= a[3] & b[2]
+    ret[3] ^= a[0] & b[2] # add
+    a[0]   ^= a[1] # reduce
 
-    ret[0] ^= a[2] & b[2] # add
-    ret[1] ^= a[3] & b[2]
-    ret[2] ^= a[0] & b[2]
-    ret[3] ^= a[1] & b[2]
-    a[2]   ^= a[1] # reduce
+    ret[0] ^= a[2] & b[1]
+    ret[1] ^= a[3] & b[1]
+    ret[2] ^= a[0] & b[1]
+    ret[3] ^= a[1] & b[1] # add
+    a[1]   ^= a[2] # reduce
 
-    ret[0] ^= a[1] & b[3] # add
-    ret[1] ^= a[2] & b[3]
-    ret[2] ^= a[3] & b[3]
-    ret[3] ^= a[0] & b[3]
+    ret[0] ^= a[3] & b[0]
+    ret[1] ^= a[0] & b[0]
+    ret[2] ^= a[1] & b[0]
+    ret[3] ^= a[2] & b[0] # add
     # reduction unneccesary
 
     return ret
@@ -98,7 +96,7 @@ def bitslice_32x4(x):
     ret = [0, 0, 0, 0]
     for i in range(32):
         for j in range(4):
-            ret[j] |= ((x[i] & (1 << j)) >> j) << i
+            ret[3-j] |= ((x[31-i] & (1 << j)) >> j) << i
     return ret
 
 def unbitslice_32x4(x):
@@ -106,7 +104,7 @@ def unbitslice_32x4(x):
     ret = [0] * 32
     for i in range(4):
         for j in range(32):
-            ret[j] |= ((x[i] & (1 << j)) >> j) << i
+            ret[31-j] |= ((x[3-i] & (1 << j)) >> j) << i
     return ret
 
 
@@ -141,16 +139,14 @@ def lbox2(state):
 
     for clock in range(8):
         x = _gf16_mul2(poly(clock), state)
+        ops = list(zip(unbitslice_32x4(poly(clock)), unbitslice_32x4(state)))
         accs = []
         for reg in range(4): # reg for register
             acc = 0
-            for i in range(8-clock):
-                acc ^= x[reg] >> i
-            for i in range(clock+1):
+            for i in range(8):
                 acc ^= x[reg] << i
+            state[reg] ^= ((acc & 0x80808080)) >> clock
             accs.append(acc)
-            state[reg] ^= acc & (0x0101010101 << clock)
-
     return state
 
 def lbox(state):
