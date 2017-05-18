@@ -151,7 +151,6 @@ def lbox2(state):
             accs.append(acc)
             state[reg] ^= acc & (0x0101010101 << clock)
 
-
     return state
 
 def lbox(state):
