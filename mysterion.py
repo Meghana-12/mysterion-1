@@ -143,9 +143,11 @@ def lbox2(state):
         accs = []
         for reg in range(4): # reg for register
             acc = 0
-            for i in range(8):
+            for i in range(8-clock):
                 acc ^= x[reg] << i
-            state[reg] ^= ((acc & 0x80808080)) >> clock
+            for i in range(1, clock+1):
+                acc ^= x[reg] >> i
+            state[reg] ^= acc & (0x80808080 >> clock)
             accs.append(acc)
     return state
 
