@@ -25,7 +25,7 @@ def sbox(block):
     c = (block[1] | block[2]) ^ block[3]
     d = (a & block[3]) ^ block[0]
     b = (c & block[0]) ^ block[1]
-    return (a,b,c,d)
+    return [a,b,c,d]
 
 
 def _gf16_mul(a, b, p=0b10011):
@@ -108,6 +108,31 @@ def unbitslice_32x4(x):
     return ret
 
 
+def byteslice(x):
+    """
+    >>> x = list(range(16))
+    >>> expected = [0x0004080c, 0x0105090d, 0x02060a0e, 0x03070b0f]
+    >>> unbyteslice(byteslice(x)) == x
+    True
+    >>> byteslice(x) == expected
+    True
+    """
+    ret = [0] * 4
+    for i in range(4):
+        for j in range(4):
+            ret[i] |= x[4*j + i] << ((3 - j) * 8)
+    return ret
+
+
+def unbyteslice(x):
+    ret = [0] * 16
+    for i in range(4):
+        for j in range(4):
+            shift = (3 - j) * 8
+            ret[4*j + i] = (x[i] & (0xff << shift)) >> shift
+    return ret
+
+
 def lbox2(state):
     """
     >>> x = [0, 0, 0, 0, 0, 0, 0, 1]
@@ -120,12 +145,17 @@ def lbox2(state):
     >>> y == lbox(x) * 4 or (y[:8], lbox(x))
     True
 
-    >>> x = list(range(8))
+    >>> x = list(range(1,9))
     >>> y = unbitslice_32x4(lbox2(bitslice_32x4(x * 4)))
     >>> y == lbox(x) * 4 or (y[:8], lbox(x))
     True
-    """
 
+    Check that the bitsliced polynomial matches to polynomials as needed in the
+    state's "bytesliced" representation.
+    >>> x = [0] * 25 + [0b1000, 0b0011, 0b1111, 0b0101, 0b1111, 0b0011, 0b1000]
+    >>> bitslice_32x4(x) == [0b01010101, 0b00011100, 0b00110110, 0b00111110]
+    True
+    """
     # state is a list of 4 32-bit numbers (in bitsliced form!)
     def poly(n):
         """
@@ -139,8 +169,6 @@ def lbox2(state):
 
     for clock in range(8):
         x = _gf16_mul2(poly(clock), state)
-        ops = list(zip(unbitslice_32x4(poly(clock)), unbitslice_32x4(state)))
-        accs = []
         for reg in range(4): # reg for register
             acc = 0
             for i in range(8-clock):
@@ -148,8 +176,9 @@ def lbox2(state):
             for i in range(1, clock+1):
                 acc ^= x[reg] >> i
             state[reg] ^= acc & (0x80808080 >> clock)
-            accs.append(acc)
+
     return state
+
 
 def lbox(state):
     """
@@ -201,6 +230,28 @@ def shiftcolumns(blocks):
     return [tuple(lst) for lst in out]
 
 
+def ror(x, n):
+    """
+    >>> ror(0b00110000000000000000000000000001, 2) == 0b01001100000000000000000000000000
+    True
+    """
+    hi = x & ((0xffffffff >> n) << n)
+    lo = x & (0xffffffff >> (32 - n))
+    hi >>= n
+    lo <<= 32 - n
+    return hi | lo
+
+
+def shiftcolumns2(state):
+    out = [0, 0, 0, 0]
+    for i in range(4):
+        out[i]  =     state[i] & 0xc0c0c0c0
+        out[i] |= ror(state[i] & 0x30303030, 8)
+        out[i] |= ror(state[i] & 0x0c0c0c0c, 16)
+        out[i] |= ror(state[i] & 0x03030303, 24)
+    return out
+
+
 def mysterion(key, msg):
     """
     >>> msg = [0x1, 0x1, 0x0, 0x0,0xB2, 0xC3, 0xD4, 0xE5,0xF6, 0x07, 0x18, 0x29,0x3A, 0x4B, 0x5C, 0x6D]
@@ -235,6 +286,49 @@ def mysterion(key, msg):
         const = roundconst(round_number)
         state = [xi ^ ki ^ cri for xi,ki,cri in zip(state, key, const)]
     return state
+
+
+def mysterion2(key_norm, msg_norm):
+    """
+    >>> msg = [0x1, 0x1, 0x0, 0x0,0xB2, 0xC3, 0xD4, 0xE5,0xF6, 0x07, 0x18, 0x29,0x3A, 0x4B, 0x5C, 0x6D]
+    >>> key = [0x2, 0x5, 0x6, 0x7,0x52, 0xF3, 0xE1, 0xF2,0x13, 0x24, 0x35, 0x46,0x5B, 0x6C, 0x7D, 0x88]
+    >>> "".join("{:02x}".format(x) for x in mysterion2(key, msg))
+    'cd1a8e640087c2db3886e646c7e33def'
+    """
+    key = byteslice(key_norm)
+    state = byteslice(msg_norm)
+    for i in range(4): state[i] ^= key[i]
+
+    round_consts_norm = [roundconst(n+1) for n in range(NR)]
+    round_consts = [byteslice(x) for x in round_consts_norm]
+
+    for i in range(NR):
+        state = sbox(state)
+        state = lbox2(state)
+        state = shiftcolumns2(state)
+        for j in range(4):
+            state[j] ^= key[j] ^ round_consts[i][j]
+
+    return unbyteslice(state)
+
+
+def print_state_sbox(state):
+    print("PRINT_STATE_SBOX:")
+    for x in state:
+        x1 = (x >> 24) & 0xFF
+        x2 = (x >> 16) & 0xFF
+        x3 = (x >> 8) & 0xFF
+        x4 = x & 0xFF
+        print("... {:08b} {:08b} {:08b} {:08b}".format(x1, x2, x3, x4))
+    print()
+
+
+def print_state_lbox(state):
+    print("PRINT_STATE_LBOX:")
+    for i, x in enumerate(state):
+        print("{:04b}".format(x), end=" ")
+        if i % 8 == 7: print()
+    print()
 
 
 if __name__ == "__main__":
