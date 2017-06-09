@@ -25,7 +25,7 @@ int main(void)
     }
 
     uint32_t ret = mysterion(state, key);
-    snprintf(output, sizeof output, "'%i'\n", (int) ret);
+    snprintf(output, sizeof output, "'%u'\n", (int) ret);
     send_USART_str(output);
 
     while(1);
