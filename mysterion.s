@@ -1,15 +1,3 @@
-/*
- * C Application Binary Interface (ABI)
- * • Agreement on how to deal with parameters and return values (and a
- * lot more)
- * • If it fits, parameters in r0-r3
- * • Otherwise, a part in r0-r3 and the rest on the stack
- * • Return value in r0
- * • The callee(!) should preserve r4-r12 if it overwrites them
- * • Of course, for private subroutines, you can ignore this ABI completely
- * • But pay attention when calling your assembly from, e.g., C
- */
-
 .syntax unified
 .cpu cortex-m4
 
@@ -213,7 +201,7 @@
      * state[2] = (state[1] | state[2]) ^ state[3]
      * state[3] = (a & state[3]) ^ state[0]
      * state[1] = (state[2] & state[0]) ^ state[1] # new state[2] value
-     *            ^~~~~~~~~~~~~~ Use r11
+     *            ^~~~~~~~~~~~~~~~~~~~~ Use r1
      * state[0] = a
      */
     and r0, r2, r3
