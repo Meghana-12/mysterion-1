@@ -177,370 +177,379 @@
      * - p0,p1,p2,p3: literal bitsliced polynomial
      * - [r2..r5]: input (unaltered)
      * - [r1,r10..12]: output
-     * - [r6]: temporary value
+     * - [r0]: temporary value
      */
     and r1,  r5, #(\p0)
     and r10, r5, #(\p1)
     and r11, r5, #(\p2)
     and r12, r5, #(\p3)
 
-    and r6,  r4,  #(\p1)
-    eor r1,  r1,  r6
-    and r6,  r4,  #(\p2)
-    eor r10, r10, r6
-    and r6,  r4,  #((\p3)^\p0)
-    eor r11, r11, r6
-    and r6,  r4,  #(\p0)
-    eor r12, r12, r6
+    and r0,  r4,  #(\p1)
+    eor r1,  r1,  r0
+    and r0,  r4,  #(\p2)
+    eor r10, r10, r0
+    and r0,  r4,  #((\p3)^\p0)
+    eor r11, r11, r0
+    and r0,  r4,  #(\p0)
+    eor r12, r12, r0
 
-    and r6,  r3,  #(\p2)
-    eor r1,  r1,  r6
-    and r6,  r3,  #((\p3)^\p0)
-    eor r10, r10, r6
-    and r6,  r3,  #((\p0)^\p1)
-    eor r11, r11, r6
-    and r6,  r3,  #(\p1)
-    eor r12, r12, r6
+    and r0,  r3,  #(\p2)
+    eor r1,  r1,  r0
+    and r0,  r3,  #((\p3)^\p0)
+    eor r10, r10, r0
+    and r0,  r3,  #((\p0)^\p1)
+    eor r11, r11, r0
+    and r0,  r3,  #(\p1)
+    eor r12, r12, r0
 
-    and r6,  r2,  #((\p3)^\p0)
-    eor r1,  r1,  r6
-    and r6,  r2,  #((\p0)^\p1)
-    eor r10, r10, r6
-    and r6,  r2,  #((\p1)^\p2)
-    eor r11, r11, r6
-    and r6,  r2,  #(\p2)
-    eor r12, r12, r6
+    and r0,  r2,  #((\p3)^\p0)
+    eor r1,  r1,  r0
+    and r0,  r2,  #((\p0)^\p1)
+    eor r10, r10, r0
+    and r0,  r2,  #((\p1)^\p2)
+    eor r11, r11, r0
+    and r0,  r2,  #(\p2)
+    eor r12, r12, r0
 .endm
 
 
 .macro lbox
-    /* Unfortunatly, we need r6 as a temporary register */
-    push {r6}
+    /*
+     * Execution of the Lbox on the state:
+     * - State: [r2..r5]
+     * - Temporary registers: [r0, r1, r10..r12]
+     */
 
     /* Round 1 */
     gf16_mul_lit 0x55555555,0x1c1c1c1c,0x36363636,0x3e3e3e3e
-    eor r6, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r6, r6, r1, lsl #2
-    eor r6, r6, r1, lsl #3
-    eor r6, r6, r1, lsl #4
-    eor r6, r6, r1, lsl #5
-    eor r6, r6, r1, lsl #6
-    eor r6, r6, r1, lsl #7
-    and r6, r6, #0x80808080 /* masked addition of first polynomial */
-    eor r2, r2, r6
-    eor r6, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r6, r6, r10, lsl #2
-    eor r6, r6, r10, lsl #3
-    eor r6, r6, r10, lsl #4
-    eor r6, r6, r10, lsl #5
-    eor r6, r6, r10, lsl #6
-    eor r6, r6, r10, lsl #7
-    and r6, r6, #0x80808080 /* masked addition of first polynomial */
-    eor r3, r3, r6
-    eor r6, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r6, r6, r11, lsl #2
-    eor r6, r6, r11, lsl #3
-    eor r6, r6, r11, lsl #4
-    eor r6, r6, r11, lsl #5
-    eor r6, r6, r11, lsl #6
-    eor r6, r6, r11, lsl #7
-    and r6, r6, #0x80808080 /* masked addition of first polynomial */
-    eor r4, r4, r6
-    eor r6, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r6, r6, r12, lsl #2
-    eor r6, r6, r12, lsl #3
-    eor r6, r6, r12, lsl #4
-    eor r6, r6, r12, lsl #5
-    eor r6, r6, r12, lsl #6
-    eor r6, r6, r12, lsl #7
-    and r6, r6, #0x80808080 /* masked addition of first polynomial */
-    eor r5, r5, r6
+    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
+    eor r0, r0, r1, lsl #2
+    eor r0, r0, r1, lsl #3
+    eor r0, r0, r1, lsl #4
+    eor r0, r0, r1, lsl #5
+    eor r0, r0, r1, lsl #6
+    eor r0, r0, r1, lsl #7
+    and r0, r0, #0x80808080 /* masked addition of first polynomial */
+    eor r2, r2, r0
+    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
+    eor r0, r0, r10, lsl #2
+    eor r0, r0, r10, lsl #3
+    eor r0, r0, r10, lsl #4
+    eor r0, r0, r10, lsl #5
+    eor r0, r0, r10, lsl #6
+    eor r0, r0, r10, lsl #7
+    and r0, r0, #0x80808080 /* masked addition of first polynomial */
+    eor r3, r3, r0
+    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
+    eor r0, r0, r11, lsl #2
+    eor r0, r0, r11, lsl #3
+    eor r0, r0, r11, lsl #4
+    eor r0, r0, r11, lsl #5
+    eor r0, r0, r11, lsl #6
+    eor r0, r0, r11, lsl #7
+    and r0, r0, #0x80808080 /* masked addition of first polynomial */
+    eor r4, r4, r0
+    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
+    eor r0, r0, r12, lsl #2
+    eor r0, r0, r12, lsl #3
+    eor r0, r0, r12, lsl #4
+    eor r0, r0, r12, lsl #5
+    eor r0, r0, r12, lsl #6
+    eor r0, r0, r12, lsl #7
+    and r0, r0, #0x80808080 /* masked addition of first polynomial */
+    eor r5, r5, r0
 
     /* Round 2 */
     gf16_mul_lit 0xaaaaaaaa,0x0e0e0e0e,0x1b1b1b1b,0x1f1f1f1f
-    eor r6, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r6, r6, r1, lsl #2
-    eor r6, r6, r1, lsl #3
-    eor r6, r6, r1, lsl #4
-    eor r6, r6, r1, lsl #5
-    eor r6, r6, r1, lsl #6
-    eor r6, r6, r1, asr #1
-    and r6, r6, #0x40404040 /* masked addition of first polynomial */
-    eor r2, r2, r6
-    eor r6, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r6, r6, r10, lsl #2
-    eor r6, r6, r10, lsl #3
-    eor r6, r6, r10, lsl #4
-    eor r6, r6, r10, lsl #5
-    eor r6, r6, r10, lsl #6
-    eor r6, r6, r10, asr #1
-    and r6, r6, #0x40404040 /* masked addition of first polynomial */
-    eor r3, r3, r6
-    eor r6, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r6, r6, r11, lsl #2
-    eor r6, r6, r11, lsl #3
-    eor r6, r6, r11, lsl #4
-    eor r6, r6, r11, lsl #5
-    eor r6, r6, r11, lsl #6
-    eor r6, r6, r11, asr #1
-    and r6, r6, #0x40404040 /* masked addition of first polynomial */
-    eor r4, r4, r6
-    eor r6, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r6, r6, r12, lsl #2
-    eor r6, r6, r12, lsl #3
-    eor r6, r6, r12, lsl #4
-    eor r6, r6, r12, lsl #5
-    eor r6, r6, r12, lsl #6
-    eor r6, r6, r12, asr #1
-    and r6, r6, #0x40404040 /* masked addition of first polynomial */
-    eor r5, r5, r6
+    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
+    eor r0, r0, r1, lsl #2
+    eor r0, r0, r1, lsl #3
+    eor r0, r0, r1, lsl #4
+    eor r0, r0, r1, lsl #5
+    eor r0, r0, r1, lsl #6
+    eor r0, r0, r1, asr #1
+    and r0, r0, #0x40404040 /* masked addition of first polynomial */
+    eor r2, r2, r0
+    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
+    eor r0, r0, r10, lsl #2
+    eor r0, r0, r10, lsl #3
+    eor r0, r0, r10, lsl #4
+    eor r0, r0, r10, lsl #5
+    eor r0, r0, r10, lsl #6
+    eor r0, r0, r10, asr #1
+    and r0, r0, #0x40404040 /* masked addition of first polynomial */
+    eor r3, r3, r0
+    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
+    eor r0, r0, r11, lsl #2
+    eor r0, r0, r11, lsl #3
+    eor r0, r0, r11, lsl #4
+    eor r0, r0, r11, lsl #5
+    eor r0, r0, r11, lsl #6
+    eor r0, r0, r11, asr #1
+    and r0, r0, #0x40404040 /* masked addition of first polynomial */
+    eor r4, r4, r0
+    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
+    eor r0, r0, r12, lsl #2
+    eor r0, r0, r12, lsl #3
+    eor r0, r0, r12, lsl #4
+    eor r0, r0, r12, lsl #5
+    eor r0, r0, r12, lsl #6
+    eor r0, r0, r12, asr #1
+    and r0, r0, #0x40404040 /* masked addition of first polynomial */
+    eor r5, r5, r0
 
     /* Round 3 */
     gf16_mul_lit 0x55555555,0x07070707,0x8d8d8d8d,0x8f8f8f8f
-    eor r6, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r6, r6, r1, lsl #2
-    eor r6, r6, r1, lsl #3
-    eor r6, r6, r1, lsl #4
-    eor r6, r6, r1, lsl #5
-    eor r6, r6, r1, asr #1
-    eor r6, r6, r1, asr #2
-    and r6, r6, #0x20202020 /* masked addition of first polynomial */
-    eor r2, r2, r6
-    eor r6, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r6, r6, r10, lsl #2
-    eor r6, r6, r10, lsl #3
-    eor r6, r6, r10, lsl #4
-    eor r6, r6, r10, lsl #5
-    eor r6, r6, r10, asr #1
-    eor r6, r6, r10, asr #2
-    and r6, r6, #0x20202020 /* masked addition of first polynomial */
-    eor r3, r3, r6
-    eor r6, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r6, r6, r11, lsl #2
-    eor r6, r6, r11, lsl #3
-    eor r6, r6, r11, lsl #4
-    eor r6, r6, r11, lsl #5
-    eor r6, r6, r11, asr #1
-    eor r6, r6, r11, asr #2
-    and r6, r6, #0x20202020 /* masked addition of first polynomial */
-    eor r4, r4, r6
-    eor r6, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r6, r6, r12, lsl #2
-    eor r6, r6, r12, lsl #3
-    eor r6, r6, r12, lsl #4
-    eor r6, r6, r12, lsl #5
-    eor r6, r6, r12, asr #1
-    eor r6, r6, r12, asr #2
-    and r6, r6, #0x20202020 /* masked addition of first polynomial */
-    eor r5, r5, r6
+    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
+    eor r0, r0, r1, lsl #2
+    eor r0, r0, r1, lsl #3
+    eor r0, r0, r1, lsl #4
+    eor r0, r0, r1, lsl #5
+    eor r0, r0, r1, asr #1
+    eor r0, r0, r1, asr #2
+    and r0, r0, #0x20202020 /* masked addition of first polynomial */
+    eor r2, r2, r0
+    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
+    eor r0, r0, r10, lsl #2
+    eor r0, r0, r10, lsl #3
+    eor r0, r0, r10, lsl #4
+    eor r0, r0, r10, lsl #5
+    eor r0, r0, r10, asr #1
+    eor r0, r0, r10, asr #2
+    and r0, r0, #0x20202020 /* masked addition of first polynomial */
+    eor r3, r3, r0
+    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
+    eor r0, r0, r11, lsl #2
+    eor r0, r0, r11, lsl #3
+    eor r0, r0, r11, lsl #4
+    eor r0, r0, r11, lsl #5
+    eor r0, r0, r11, asr #1
+    eor r0, r0, r11, asr #2
+    and r0, r0, #0x20202020 /* masked addition of first polynomial */
+    eor r4, r4, r0
+    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
+    eor r0, r0, r12, lsl #2
+    eor r0, r0, r12, lsl #3
+    eor r0, r0, r12, lsl #4
+    eor r0, r0, r12, lsl #5
+    eor r0, r0, r12, asr #1
+    eor r0, r0, r12, asr #2
+    and r0, r0, #0x20202020 /* masked addition of first polynomial */
+    eor r5, r5, r0
 
     /* Round 4 */
     gf16_mul_lit 0xaaaaaaaa,0x83838383,0xc6c6c6c6,0xc7c7c7c7
-    eor r6, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r6, r6, r1, lsl #2
-    eor r6, r6, r1, lsl #3
-    eor r6, r6, r1, lsl #4
-    eor r6, r6, r1, asr #1
-    eor r6, r6, r1, asr #2
-    eor r6, r6, r1, asr #3
-    and r6, r6, #0x10101010 /* masked addition of first polynomial */
-    eor r2, r2, r6
-    eor r6, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r6, r6, r10, lsl #2
-    eor r6, r6, r10, lsl #3
-    eor r6, r6, r10, lsl #4
-    eor r6, r6, r10, asr #1
-    eor r6, r6, r10, asr #2
-    eor r6, r6, r10, asr #3
-    and r6, r6, #0x10101010 /* masked addition of first polynomial */
-    eor r3, r3, r6
-    eor r6, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r6, r6, r11, lsl #2
-    eor r6, r6, r11, lsl #3
-    eor r6, r6, r11, lsl #4
-    eor r6, r6, r11, asr #1
-    eor r6, r6, r11, asr #2
-    eor r6, r6, r11, asr #3
-    and r6, r6, #0x10101010 /* masked addition of first polynomial */
-    eor r4, r4, r6
-    eor r6, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r6, r6, r12, lsl #2
-    eor r6, r6, r12, lsl #3
-    eor r6, r6, r12, lsl #4
-    eor r6, r6, r12, asr #1
-    eor r6, r6, r12, asr #2
-    eor r6, r6, r12, asr #3
-    and r6, r6, #0x10101010 /* masked addition of first polynomial */
-    eor r5, r5, r6
+    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
+    eor r0, r0, r1, lsl #2
+    eor r0, r0, r1, lsl #3
+    eor r0, r0, r1, lsl #4
+    eor r0, r0, r1, asr #1
+    eor r0, r0, r1, asr #2
+    eor r0, r0, r1, asr #3
+    and r0, r0, #0x10101010 /* masked addition of first polynomial */
+    eor r2, r2, r0
+    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
+    eor r0, r0, r10, lsl #2
+    eor r0, r0, r10, lsl #3
+    eor r0, r0, r10, lsl #4
+    eor r0, r0, r10, asr #1
+    eor r0, r0, r10, asr #2
+    eor r0, r0, r10, asr #3
+    and r0, r0, #0x10101010 /* masked addition of first polynomial */
+    eor r3, r3, r0
+    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
+    eor r0, r0, r11, lsl #2
+    eor r0, r0, r11, lsl #3
+    eor r0, r0, r11, lsl #4
+    eor r0, r0, r11, asr #1
+    eor r0, r0, r11, asr #2
+    eor r0, r0, r11, asr #3
+    and r0, r0, #0x10101010 /* masked addition of first polynomial */
+    eor r4, r4, r0
+    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
+    eor r0, r0, r12, lsl #2
+    eor r0, r0, r12, lsl #3
+    eor r0, r0, r12, lsl #4
+    eor r0, r0, r12, asr #1
+    eor r0, r0, r12, asr #2
+    eor r0, r0, r12, asr #3
+    and r0, r0, #0x10101010 /* masked addition of first polynomial */
+    eor r5, r5, r0
 
     /* Round 5 */
     gf16_mul_lit 0x55555555,0xc1c1c1c1,0x63636363,0xe3e3e3e3
-    eor r6, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r6, r6, r1, lsl #2
-    eor r6, r6, r1, lsl #3
-    eor r6, r6, r1, asr #1
-    eor r6, r6, r1, asr #2
-    eor r6, r6, r1, asr #3
-    eor r6, r6, r1, asr #4
-    and r6, r6, #0x8080808 /* masked addition of first polynomial */
-    eor r2, r2, r6
-    eor r6, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r6, r6, r10, lsl #2
-    eor r6, r6, r10, lsl #3
-    eor r6, r6, r10, asr #1
-    eor r6, r6, r10, asr #2
-    eor r6, r6, r10, asr #3
-    eor r6, r6, r10, asr #4
-    and r6, r6, #0x8080808 /* masked addition of first polynomial */
-    eor r3, r3, r6
-    eor r6, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r6, r6, r11, lsl #2
-    eor r6, r6, r11, lsl #3
-    eor r6, r6, r11, asr #1
-    eor r6, r6, r11, asr #2
-    eor r6, r6, r11, asr #3
-    eor r6, r6, r11, asr #4
-    and r6, r6, #0x8080808 /* masked addition of first polynomial */
-    eor r4, r4, r6
-    eor r6, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r6, r6, r12, lsl #2
-    eor r6, r6, r12, lsl #3
-    eor r6, r6, r12, asr #1
-    eor r6, r6, r12, asr #2
-    eor r6, r6, r12, asr #3
-    eor r6, r6, r12, asr #4
-    and r6, r6, #0x8080808 /* masked addition of first polynomial */
-    eor r5, r5, r6
+    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
+    eor r0, r0, r1, lsl #2
+    eor r0, r0, r1, lsl #3
+    eor r0, r0, r1, asr #1
+    eor r0, r0, r1, asr #2
+    eor r0, r0, r1, asr #3
+    eor r0, r0, r1, asr #4
+    and r0, r0, #0x8080808 /* masked addition of first polynomial */
+    eor r2, r2, r0
+    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
+    eor r0, r0, r10, lsl #2
+    eor r0, r0, r10, lsl #3
+    eor r0, r0, r10, asr #1
+    eor r0, r0, r10, asr #2
+    eor r0, r0, r10, asr #3
+    eor r0, r0, r10, asr #4
+    and r0, r0, #0x8080808 /* masked addition of first polynomial */
+    eor r3, r3, r0
+    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
+    eor r0, r0, r11, lsl #2
+    eor r0, r0, r11, lsl #3
+    eor r0, r0, r11, asr #1
+    eor r0, r0, r11, asr #2
+    eor r0, r0, r11, asr #3
+    eor r0, r0, r11, asr #4
+    and r0, r0, #0x8080808 /* masked addition of first polynomial */
+    eor r4, r4, r0
+    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
+    eor r0, r0, r12, lsl #2
+    eor r0, r0, r12, lsl #3
+    eor r0, r0, r12, asr #1
+    eor r0, r0, r12, asr #2
+    eor r0, r0, r12, asr #3
+    eor r0, r0, r12, asr #4
+    and r0, r0, #0x8080808 /* masked addition of first polynomial */
+    eor r5, r5, r0
 
     /* Round 6 */
     gf16_mul_lit 0xaaaaaaaa,0xe0e0e0e0,0xb1b1b1b1,0xf1f1f1f1
-    eor r6, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r6, r6, r1, lsl #2
-    eor r6, r6, r1, asr #1
-    eor r6, r6, r1, asr #2
-    eor r6, r6, r1, asr #3
-    eor r6, r6, r1, asr #4
-    eor r6, r6, r1, asr #5
-    and r6, r6, #0x04040404 /* masked addition of first polynomial */
-    eor r2, r2, r6
-    eor r6, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r6, r6, r10, lsl #2
-    eor r6, r6, r10, asr #1
-    eor r6, r6, r10, asr #2
-    eor r6, r6, r10, asr #3
-    eor r6, r6, r10, asr #4
-    eor r6, r6, r10, asr #5
-    and r6, r6, #0x04040404 /* masked addition of first polynomial */
-    eor r3, r3, r6
-    eor r6, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r6, r6, r11, lsl #2
-    eor r6, r6, r11, asr #1
-    eor r6, r6, r11, asr #2
-    eor r6, r6, r11, asr #3
-    eor r6, r6, r11, asr #4
-    eor r6, r6, r11, asr #5
-    and r6, r6, #0x04040404 /* masked addition of first polynomial */
-    eor r4, r4, r6
-    eor r6, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r6, r6, r12, lsl #2
-    eor r6, r6, r12, asr #1
-    eor r6, r6, r12, asr #2
-    eor r6, r6, r12, asr #3
-    eor r6, r6, r12, asr #4
-    eor r6, r6, r12, asr #5
-    and r6, r6, #0x04040404 /* masked addition of first polynomial */
-    eor r5, r5, r6
+    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
+    eor r0, r0, r1, lsl #2
+    eor r0, r0, r1, asr #1
+    eor r0, r0, r1, asr #2
+    eor r0, r0, r1, asr #3
+    eor r0, r0, r1, asr #4
+    eor r0, r0, r1, asr #5
+    and r0, r0, #0x04040404 /* masked addition of first polynomial */
+    eor r2, r2, r0
+    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
+    eor r0, r0, r10, lsl #2
+    eor r0, r0, r10, asr #1
+    eor r0, r0, r10, asr #2
+    eor r0, r0, r10, asr #3
+    eor r0, r0, r10, asr #4
+    eor r0, r0, r10, asr #5
+    and r0, r0, #0x04040404 /* masked addition of first polynomial */
+    eor r3, r3, r0
+    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
+    eor r0, r0, r11, lsl #2
+    eor r0, r0, r11, asr #1
+    eor r0, r0, r11, asr #2
+    eor r0, r0, r11, asr #3
+    eor r0, r0, r11, asr #4
+    eor r0, r0, r11, asr #5
+    and r0, r0, #0x04040404 /* masked addition of first polynomial */
+    eor r4, r4, r0
+    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
+    eor r0, r0, r12, lsl #2
+    eor r0, r0, r12, asr #1
+    eor r0, r0, r12, asr #2
+    eor r0, r0, r12, asr #3
+    eor r0, r0, r12, asr #4
+    eor r0, r0, r12, asr #5
+    and r0, r0, #0x04040404 /* masked addition of first polynomial */
+    eor r5, r5, r0
 
     /* Round 7 */
     gf16_mul_lit 0x55555555,0x70707070,0xd8d8d8d8,0xf8f8f8f8
-    eor r6, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r6, r6, r1, asr #1
-    eor r6, r6, r1, asr #2
-    eor r6, r6, r1, asr #3
-    eor r6, r6, r1, asr #4
-    eor r6, r6, r1, asr #5
-    eor r6, r6, r1, asr #6
-    and r6, r6, #0x02020202 /* masked addition of first polynomial */
-    eor r2, r2, r6
-    eor r6, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r6, r6, r10, asr #1
-    eor r6, r6, r10, asr #2
-    eor r6, r6, r10, asr #3
-    eor r6, r6, r10, asr #4
-    eor r6, r6, r10, asr #5
-    eor r6, r6, r10, asr #6
-    and r6, r6, #0x02020202 /* masked addition of first polynomial */
-    eor r3, r3, r6
-    eor r6, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r6, r6, r11, asr #1
-    eor r6, r6, r11, asr #2
-    eor r6, r6, r11, asr #3
-    eor r6, r6, r11, asr #4
-    eor r6, r6, r11, asr #5
-    eor r6, r6, r11, asr #6
-    and r6, r6, #0x02020202 /* masked addition of first polynomial */
-    eor r4, r4, r6
-    eor r6, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r6, r6, r12, asr #1
-    eor r6, r6, r12, asr #2
-    eor r6, r6, r12, asr #3
-    eor r6, r6, r12, asr #4
-    eor r6, r6, r12, asr #5
-    eor r6, r6, r12, asr #6
-    and r6, r6, #0x02020202 /* masked addition of first polynomial */
-    eor r5, r5, r6
+    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
+    eor r0, r0, r1, asr #1
+    eor r0, r0, r1, asr #2
+    eor r0, r0, r1, asr #3
+    eor r0, r0, r1, asr #4
+    eor r0, r0, r1, asr #5
+    eor r0, r0, r1, asr #6
+    and r0, r0, #0x02020202 /* masked addition of first polynomial */
+    eor r2, r2, r0
+    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
+    eor r0, r0, r10, asr #1
+    eor r0, r0, r10, asr #2
+    eor r0, r0, r10, asr #3
+    eor r0, r0, r10, asr #4
+    eor r0, r0, r10, asr #5
+    eor r0, r0, r10, asr #6
+    and r0, r0, #0x02020202 /* masked addition of first polynomial */
+    eor r3, r3, r0
+    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
+    eor r0, r0, r11, asr #1
+    eor r0, r0, r11, asr #2
+    eor r0, r0, r11, asr #3
+    eor r0, r0, r11, asr #4
+    eor r0, r0, r11, asr #5
+    eor r0, r0, r11, asr #6
+    and r0, r0, #0x02020202 /* masked addition of first polynomial */
+    eor r4, r4, r0
+    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
+    eor r0, r0, r12, asr #1
+    eor r0, r0, r12, asr #2
+    eor r0, r0, r12, asr #3
+    eor r0, r0, r12, asr #4
+    eor r0, r0, r12, asr #5
+    eor r0, r0, r12, asr #6
+    and r0, r0, #0x02020202 /* masked addition of first polynomial */
+    eor r5, r5, r0
 
     /* Round 8 */
     gf16_mul_lit 0xaaaaaaaa,0x38383838,0x6c6c6c6c,0x7c7c7c7c
-    eor r6, r1, r1, asr #1 /* accumulate the result for reg[0] */
-    eor r6, r6, r1, asr #2
-    eor r6, r6, r1, asr #3
-    eor r6, r6, r1, asr #4
-    eor r6, r6, r1, asr #5
-    eor r6, r6, r1, asr #6
-    eor r6, r6, r1, asr #7
-    and r6, r6, #0x01010101 /* masked addition of first polynomial */
-    eor r2, r2, r6
-    eor r6, r10, r10, asr #1 /* accumulate the result for reg[1] */
-    eor r6, r6, r10, asr #2
-    eor r6, r6, r10, asr #3
-    eor r6, r6, r10, asr #4
-    eor r6, r6, r10, asr #5
-    eor r6, r6, r10, asr #6
-    eor r6, r6, r10, asr #7
-    and r6, r6, #0x01010101 /* masked addition of first polynomial */
-    eor r3, r3, r6
-    eor r6, r11, r11, asr #1 /* accumulate the result for reg[2] */
-    eor r6, r6, r11, asr #2
-    eor r6, r6, r11, asr #3
-    eor r6, r6, r11, asr #4
-    eor r6, r6, r11, asr #5
-    eor r6, r6, r11, asr #6
-    eor r6, r6, r11, asr #7
-    and r6, r6, #0x01010101 /* masked addition of first polynomial */
-    eor r4, r4, r6
-    eor r6, r12, r12, asr #1 /* accumulate the result for reg[3] */
-    eor r6, r6, r12, asr #2
-    eor r6, r6, r12, asr #3
-    eor r6, r6, r12, asr #4
-    eor r6, r6, r12, asr #5
-    eor r6, r6, r12, asr #6
-    eor r6, r6, r12, asr #7
-    and r6, r6, #0x01010101 /* masked addition of first polynomial */
-    eor r5, r5, r6
-
-    /* restore r6 back from the stack */
-    pop {r6}
+    eor r0, r1, r1, asr #1 /* accumulate the result for reg[0] */
+    eor r0, r0, r1, asr #2
+    eor r0, r0, r1, asr #3
+    eor r0, r0, r1, asr #4
+    eor r0, r0, r1, asr #5
+    eor r0, r0, r1, asr #6
+    eor r0, r0, r1, asr #7
+    and r0, r0, #0x01010101 /* masked addition of first polynomial */
+    eor r2, r2, r0
+    eor r0, r10, r10, asr #1 /* accumulate the result for reg[1] */
+    eor r0, r0, r10, asr #2
+    eor r0, r0, r10, asr #3
+    eor r0, r0, r10, asr #4
+    eor r0, r0, r10, asr #5
+    eor r0, r0, r10, asr #6
+    eor r0, r0, r10, asr #7
+    and r0, r0, #0x01010101 /* masked addition of first polynomial */
+    eor r3, r3, r0
+    eor r0, r11, r11, asr #1 /* accumulate the result for reg[2] */
+    eor r0, r0, r11, asr #2
+    eor r0, r0, r11, asr #3
+    eor r0, r0, r11, asr #4
+    eor r0, r0, r11, asr #5
+    eor r0, r0, r11, asr #6
+    eor r0, r0, r11, asr #7
+    and r0, r0, #0x01010101 /* masked addition of first polynomial */
+    eor r4, r4, r0
+    eor r0, r12, r12, asr #1 /* accumulate the result for reg[3] */
+    eor r0, r0, r12, asr #2
+    eor r0, r0, r12, asr #3
+    eor r0, r0, r12, asr #4
+    eor r0, r0, r12, asr #5
+    eor r0, r0, r12, asr #6
+    eor r0, r0, r12, asr #7
+    and r0, r0, #0x01010101 /* masked addition of first polynomial */
+    eor r5, r5, r0
 .endm
+
 
 mysterion:
     push {r4-r12}
     byteslice_msg
     byteslice_key
-    /* From this point [r0, r2..r9] are in use */
+
+    /* Spill the ptr to the output buffer to the stack, cause we need a
+    register for temporary values */
+    push {r0}
+
+
+    /* From this point [r2..r9] are in use */
     add_key
     sbox
     lbox
+
+    pop {r0}
     mov r0, r3
 
     pop {r4-r12}
