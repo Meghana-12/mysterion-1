@@ -99,8 +99,8 @@
 
 .macro unbyteslice_state
     /*
-     * r0 is destination buffer
-     * r2-r5 bytesliced input state (*this input is consumed during execution*)
+     * r0:  destination buffer
+     * r2..r5: bytesliced input state (*this is consumed during execution*)
      */
     strb r2, [r0, #12]
     strb r3, [r0, #13]
@@ -139,7 +139,61 @@
 .endm
 
 
+.macro add_const round_number
+    /*
+     * Add the round constant to the state
+     * r2: state[0]
+     * r0: temporary register
+     */
+    .if \round_number == 1
+        movw r0, 0xf48f
+        movt r0, 0x8df2
+    .elseif \round_number == 2
+        movw r0, 0xd83d
+        movt r0, 0x39d4
+    .elseif \round_number == 3
+        movw r0, 0x2cb2
+        movt r0, 0xb426
+    .elseif \round_number == 4
+        movw r0, 0x9369
+        movt r0, 0x6198
+    .elseif \round_number == 5
+        movw r0, 0x67e6
+        movt r0, 0xec6a
+    .elseif \round_number == 6
+        movw r0, 0x4b54
+        movt r0, 0x584c
+    .elseif \round_number == 7
+        movw r0, 0xbfdb
+        movt r0, 0xd5be
+    .elseif \round_number == 8
+        movw r0, 0x16c1
+        movt r0, 0xc213
+    .elseif \round_number == 9
+        movw r0, 0xe24e
+        movt r0, 0x4fe1
+    .elseif \round_number == 10
+        movw r0, 0xcefc
+        movt r0, 0xfbc7
+    .elseif \round_number == 11
+        movw r0, 0x3a73
+        movt r0, 0x7635
+    .elseif \round_number == 12
+        movw r0, 0x85a8
+        movt r0, 0xa38b
+    .else
+        .error "Round number must be in 1..12"
+    .endif
+    eor r2, r2, r0
+.endm
+
+
 .macro add_key
+    /*
+     * Add the key to the state
+     * r2..r5: state
+     * r6..r9: key
+     */
     eor r2, r2, r6
     eor r3, r3, r7
     eor r4, r4, r8
@@ -149,24 +203,28 @@
 
 .macro sbox
     /*
+     * Perform the Mysterion sbox
+     * r2..r5: state
+     * r0..r1: temporary registers
+     *
      * Equivalent Python code:
      *
-     * a = (state[0] & state[1]) ^ state[2] # Use r10
+     * a = (state[0] & state[1]) ^ state[2] # Use r0
      * state[2] = (state[1] | state[2]) ^ state[3]
      * state[3] = (a & state[3]) ^ state[0]
      * state[1] = (state[2] & state[0]) ^ state[1] # new state[2] value
      *            ^~~~~~~~~~~~~~ Use r11
      * state[0] = a
      */
-    and r10, r2, r3
-    eor r10, r10, r4
+    and r0, r2, r3
+    eor r0, r0, r4
     orr r4, r4, r3
     eor r4, r4, r5
-    and r5, r5, r10
+    and r5, r5, r0
     eor r5, r5, r2
-    and r11, r4, r2
-    eor r3, r3, r11
-    mov r2, r10
+    and r1, r4, r2
+    eor r3, r3, r1
+    mov r2, r0
 .endm
 
 
@@ -174,10 +232,11 @@
     /*
      * Bitsliced multiplication of [r2..r5] with the literal polynomials
      * specified in p0,p1,p2,p3, modulo x^4 + x + 1.
-     * - p0,p1,p2,p3: literal bitsliced polynomial
-     * - [r2..r5]: input (unaltered)
-     * - [r1,r10..12]: output
-     * - [r0]: temporary value
+     *
+     * p0,p1,p2,p3: literal bitsliced polynomial
+     * r2..r5: input (unaltered)
+     * r1,r10..12: output
+     * r0: temporary register
      */
     and r1,  r5, #(\p0)
     and r10, r5, #(\p1)
@@ -216,8 +275,8 @@
 .macro lbox
     /*
      * Execution of the Lbox on the state:
-     * - State: [r2..r5]
-     * - Temporary registers: [r0, r1, r10..r12]
+     * r2..r5: state
+     * r0, r1, r10..r12: temporary registers
      */
 
     /* Round 1 */
@@ -534,23 +593,88 @@
 .endm
 
 
+.macro shiftcolumns_inner reg
+    and r0, \reg, #0xc0c0c0c0
+    and r1, \reg, #0x30303030
+    orr r0, r0, r1, ror #8
+    and r1, \reg, #0x0c0c0c0c
+    orr r0, r0, r1, ror #16
+    and r1, \reg, #0x03030303
+    orr \reg, r0, r1, ror #24
+.endm
+
+
+.macro shiftcolumns
+    /*
+     * Do shiftcolumns operation.
+     *
+     * r2..r5: state
+     * r0, r1: temporary registers
+     *
+     * Equivalent python code:
+     * r0: tmp[i]
+     * r1: expr values (... & ...)
+     *
+     * for i in range(4):
+     *     tmp[i]  =     state[i] & 0xc0c0c0c0
+     *     tmp[i] |= ror(state[i] & 0x30303030, 8)
+     *     tmp[i] |= ror(state[i] & 0x0c0c0c0c, 16)
+     *     tmp[i] |= ror(state[i] & 0x03030303, 24)
+     *     state[i] = tmp[i]
+     */
+     shiftcolumns_inner r2
+     shiftcolumns_inner r3
+     shiftcolumns_inner r4
+     shiftcolumns_inner r5
+.endm
+
+
+.macro mysterion_round round_number
+    /*
+     * Perform one round of the Mysterion block cipher
+     * r2..r5: state
+     * r0, r1, r6..r12: temporary registers
+     */
+    sbox
+    lbox
+    shiftcolumns
+    add_const \round_number
+    add_key
+.endm
+
+
 mysterion:
+    /*
+     * Do Mysterion block encryption on msg pointed to by r0, with the values
+     * pointed to by r1 as key. This function follows the C calling convention.
+     */
+
     push {r4-r12}
     byteslice_msg
     byteslice_key
 
-    /* Spill the ptr to the output buffer to the stack, cause we need a
+    /* Spill the ptr to the output buffer to the stack, because we need a
     register for temporary values */
     push {r0}
 
-
     /* From this point [r2..r9] are in use */
     add_key
-    sbox
-    lbox
+    mysterion_round 1
+    mysterion_round 2
+    mysterion_round 3
+    mysterion_round 4
+    mysterion_round 5
+    mysterion_round 6
+    mysterion_round 7
+    mysterion_round 8
+    mysterion_round 9
+    mysterion_round 10
+    mysterion_round 11
+    mysterion_round 12
 
+    /* Put the ciphertext back in the input buffer */
     pop {r0}
-    mov r0, r3
+    unbyteslice_state
 
     pop {r4-r12}
     bx lr
