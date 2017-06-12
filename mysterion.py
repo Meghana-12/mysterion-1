@@ -28,6 +28,19 @@ def sbox(block):
     return [a,b,c,d]
 
 
+def sbox_inv(block):
+    """Bitsliced implementation of the inverse s-box
+    >>> x = [1, 2, 3, 4]
+    >>> sbox_inv(sbox(x))
+    [1, 2, 3, 4]
+    """
+    b = (block[2] & block[3]) ^ block[1]
+    d = (block[0] | b) ^ block[2]
+    a = (d & block[0]) ^ block[3]
+    c = (a & b) ^ block[0]
+    return [a, b, c, d]
+
+
 def _gf16_mul(a, b, p=0b10011):
     """
     Safely multiply two numbers in GF(2^4)
@@ -133,6 +146,17 @@ def unbyteslice(x):
     return ret
 
 
+def poly(n):
+    """
+    Function to generate a polynomial in bitsliced format for a specific
+    round. This function is pure and the results are to be hardcoded in
+    the actual product.
+    """
+    poly_norm = [0, 0b1000, 0b0011, 0b1111, 0b0101, 0b1111, 0b0011, 0b1000]
+    poly_norm = poly_norm[-n:] + poly_norm[:-n]
+    return bitslice_32x4(poly_norm * 4)
+
+
 def lbox2(state):
     """
     >>> x = [0, 0, 0, 0, 0, 0, 0, 1]
@@ -157,15 +181,6 @@ def lbox2(state):
     True
     """
     # state is a list of 4 32-bit numbers (in bitsliced form!)
-    def poly(n):
-        """
-        Function to generate a polynomial in bitsliced format for a specific
-        round. This function is pure and the results are to be hardcoded in
-        the actual product.
-        """
-        poly_norm = [0, 0b1000, 0b0011, 0b1111, 0b0101, 0b1111, 0b0011, 0b1000]
-        poly_norm = poly_norm[-n:] + poly_norm[:-n]
-        return bitslice_32x4(poly_norm * 4)
 
     for clock in range(8):
         x = _gf16_mul2(poly(clock), state)
@@ -176,6 +191,27 @@ def lbox2(state):
             for i in range(1, clock+1):
                 acc ^= x[reg] >> i
             state[reg] ^= acc & (0x80808080 >> clock)
+
+    return state
+
+
+def lbox2_inv(state):
+    """
+    >>> lbox2([0, 0, 0, 1])
+    [219, 102, 66, 102]
+    >>> lbox2_inv([219, 102, 66, 102])
+    [0, 0, 0, 1]
+    """
+    # state is a list of 4 32-bit numbers (in bitsliced form!)
+    for clock in range(8):
+        x = _gf16_mul2(poly(7 - clock), state)
+        for reg in range(4): # reg for register
+            acc = 0
+            for i in range(clock+1):
+                acc ^= x[reg] << i
+            for i in range(1, 8 - clock):
+                acc ^= x[reg] >> i
+            state[reg] ^= acc & (0x01010101 << clock)
 
     return state
 
@@ -200,6 +236,25 @@ def lbox(state):
             ops.append((state[idx], poly[idx]))
         state.pop(0)
         state.append(x)
+    return state
+
+
+def lbox_inv(state):
+    """
+    >>> lbox([0, 0, 0, 0, 0, 0, 0, 1])
+    [8, 15, 5, 8, 8, 5, 15, 8]
+    >>> lbox_inv([8, 15, 5, 8, 8, 5, 15, 8])
+    [0, 0, 0, 0, 0, 0, 0, 1]
+    >>> lbox_inv(lbox(list(range(8))))
+    [0, 1, 2, 3, 4, 5, 6, 7]
+    """
+    poly = [0b1000, 0b0011, 0b1111, 0b0101, 0b1111, 0b0011, 0b1000, 0]
+    for clock in range(8):
+        x = state[7]
+        for idx in range(8):
+            x ^= _gf16_mul(state[idx], poly[idx])
+        state.pop(7)
+        state = [x] + state[:]
     return state
 
 
@@ -243,12 +298,21 @@ def ror(x, n):
 
 
 def shiftcolumns2(state):
-    out = [0, 0, 0, 0]
+    out = [None] * 4
     for i in range(4):
         out[i]  =     state[i] & 0xc0c0c0c0
         out[i] |= ror(state[i] & 0x30303030, 8)
         out[i] |= ror(state[i] & 0x0c0c0c0c, 16)
         out[i] |= ror(state[i] & 0x03030303, 24)
+    return out
+
+def shiftcolumns2_inv(state):
+    out = [None] * 4
+    for i in range(4):
+        out[i]  =     state[i] & 0xc0c0c0c0
+        out[i] |= ror(state[i] & 0x30303030, 24)
+        out[i] |= ror(state[i] & 0x0c0c0c0c, 16)
+        out[i] |= ror(state[i] & 0x03030303, 8)
     return out
 
 
@@ -308,6 +372,32 @@ def mysterion2(key_norm, msg_norm):
         state = shiftcolumns2(state)
         for j in range(4):
             state[j] ^= key[j] ^ round_consts[i][j]
+
+    return unbyteslice(state)
+
+
+def mysterion2_inv(key_norm, ciphertext_norm):
+    """
+    >>> msg = [0x1, 0x1, 0x0, 0x0,0xB2, 0xC3, 0xD4, 0xE5,0xF6, 0x07, 0x18, 0x29,0x3A, 0x4B, 0x5C, 0x6D]
+    >>> key = [0x2, 0x5, 0x6, 0x7,0x52, 0xF3, 0xE1, 0xF2,0x13, 0x24, 0x35, 0x46,0x5B, 0x6C, 0x7D, 0x88]
+    >>> ct = mysterion2(key, msg)
+    >>> restored = mysterion2_inv(key, ct)
+    >>> msg == restored
+    True
+    """
+    key = byteslice(key_norm)
+    state = byteslice(ciphertext_norm)
+
+    round_consts_norm = reversed([roundconst(n+1) for n in range(NR)])
+    round_consts = [byteslice(x) for x in round_consts_norm]
+
+    for i in range(NR):
+        for j in range(4):
+            state[j] ^= key[j] ^ round_consts[i][j]
+        state = shiftcolumns2_inv(state)
+        state = lbox2_inv(state)
+        state = sbox_inv(state)
+    for i in range(4): state[i] ^= key[i]
 
     return unbyteslice(state)
 
