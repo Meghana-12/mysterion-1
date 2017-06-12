@@ -826,7 +826,7 @@ mysterion_decrypt:
     mysterion_inv_round 12
     add_key
 
-    /* Put the ciphertext back in the input buffer */
+    /* Put the plaintext back in the input buffer */
     pop {r0}
     unbyteslice_state
 
