@@ -203,15 +203,15 @@ def lbox2_inv(state):
     [0, 0, 0, 1]
     """
     # state is a list of 4 32-bit numbers (in bitsliced form!)
-    for clock in range(8):
-        x = _gf16_mul2(poly(7 - clock), state)
+    for clock in reversed(range(8)):
+        x = _gf16_mul2(poly(clock), state)
         for reg in range(4): # reg for register
             acc = 0
-            for i in range(clock+1):
+            for i in range(8-clock):
                 acc ^= x[reg] << i
-            for i in range(1, 8 - clock):
+            for i in range(1, clock+1):
                 acc ^= x[reg] >> i
-            state[reg] ^= acc & (0x01010101 << clock)
+            state[reg] ^= acc & (0x80808080 >> clock)
 
     return state
 

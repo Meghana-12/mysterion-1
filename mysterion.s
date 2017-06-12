@@ -13,11 +13,14 @@
 .syntax unified
 .cpu cortex-m4
 
-.global mysterion
-.type mysterion, %function
+.global mysterion_encrypt
+.type mysterion_encrypt, %function
+
+.global mysterion_decrypt
+.type mysterion_decrypt, %function
 
 
-.macro byteslice_msg
+.macro byteslice_state
     /*
      * Byteslice from msg buffer in 1 chunk of 4, and 2 chunks of 6
      * r0: pointer to msg/state
@@ -228,6 +231,33 @@
 .endm
 
 
+.macro sbox_inv
+    /*
+     * Perform the Mysterion inverse sbox
+     * r2..r5: state
+     * r0..r1: temporary registers
+     *
+     * Equivalent Python code:
+     *
+     * b = (state[2] & state[3]) ^ state[1]
+     * d = (state[0] | b) ^ state[2]
+     * a = (d & state[0]) ^ state[3]
+     * c = (a & b) ^ state[0]
+     * return [a, b, c, d]
+     */
+    and r0, r4, r5
+    eor r3, r0, r3
+    orr r0, r2, r3
+    eor r1, r0, r4 // stash d in r1
+    and r0, r1, r2
+    eor r0, r0, r5 // stash a in r0
+    mov r5, r1     // stash pop d
+    and r1, r0, r3 // stash (a & b) in r1
+    eor r4, r1, r2
+    mov r2, r0     // stash pop a
+.endm
+
+
 .macro gf16_mul_lit p0,p1,p2,p3
     /*
      * Bitsliced multiplication of [r2..r5] with the literal polynomials
@@ -272,14 +302,8 @@
 .endm
 
 
-.macro lbox
-    /*
-     * Execution of the Lbox on the state:
-     * r2..r5: state
-     * r0, r1, r10..r12: temporary registers
-     */
-
-    /* Round 1 */
+.macro lbox_round_1
+    /* Lbox round 1 */
     gf16_mul_lit 0x55555555,0x1c1c1c1c,0x36363636,0x3e3e3e3e
     eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
     eor r0, r0, r1, lsl #2
@@ -317,8 +341,11 @@
     eor r0, r0, r12, lsl #7
     and r0, r0, #0x80808080 /* masked addition of first polynomial */
     eor r5, r5, r0
+.endm
 
-    /* Round 2 */
+
+.macro lbox_round_2
+    /* Lbox round 2 */
     gf16_mul_lit 0xaaaaaaaa,0x0e0e0e0e,0x1b1b1b1b,0x1f1f1f1f
     eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
     eor r0, r0, r1, lsl #2
@@ -356,8 +383,11 @@
     eor r0, r0, r12, asr #1
     and r0, r0, #0x40404040 /* masked addition of first polynomial */
     eor r5, r5, r0
+.endm
 
-    /* Round 3 */
+
+.macro lbox_round_3
+    /* Lbox round 3 */
     gf16_mul_lit 0x55555555,0x07070707,0x8d8d8d8d,0x8f8f8f8f
     eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
     eor r0, r0, r1, lsl #2
@@ -395,8 +425,11 @@
     eor r0, r0, r12, asr #2
     and r0, r0, #0x20202020 /* masked addition of first polynomial */
     eor r5, r5, r0
+.endm
 
-    /* Round 4 */
+
+.macro lbox_round_4
+    /* Lbox round 4 */
     gf16_mul_lit 0xaaaaaaaa,0x83838383,0xc6c6c6c6,0xc7c7c7c7
     eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
     eor r0, r0, r1, lsl #2
@@ -434,8 +467,11 @@
     eor r0, r0, r12, asr #3
     and r0, r0, #0x10101010 /* masked addition of first polynomial */
     eor r5, r5, r0
+.endm
 
-    /* Round 5 */
+
+.macro lbox_round_5
+    /* Lbox round 5 */
     gf16_mul_lit 0x55555555,0xc1c1c1c1,0x63636363,0xe3e3e3e3
     eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
     eor r0, r0, r1, lsl #2
@@ -473,8 +509,11 @@
     eor r0, r0, r12, asr #4
     and r0, r0, #0x8080808 /* masked addition of first polynomial */
     eor r5, r5, r0
+.endm
 
-    /* Round 6 */
+
+.macro lbox_round_6
+    /* Lbox round 6 */
     gf16_mul_lit 0xaaaaaaaa,0xe0e0e0e0,0xb1b1b1b1,0xf1f1f1f1
     eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
     eor r0, r0, r1, lsl #2
@@ -512,8 +551,11 @@
     eor r0, r0, r12, asr #5
     and r0, r0, #0x04040404 /* masked addition of first polynomial */
     eor r5, r5, r0
+.endm
 
-    /* Round 7 */
+
+.macro lbox_round_7
+    /* Lbox round 7 */
     gf16_mul_lit 0x55555555,0x70707070,0xd8d8d8d8,0xf8f8f8f8
     eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
     eor r0, r0, r1, asr #1
@@ -551,8 +593,11 @@
     eor r0, r0, r12, asr #6
     and r0, r0, #0x02020202 /* masked addition of first polynomial */
     eor r5, r5, r0
+.endm
 
-    /* Round 8 */
+
+.macro lbox_round_8
+    /* Lbox round 8 */
     gf16_mul_lit 0xaaaaaaaa,0x38383838,0x6c6c6c6c,0x7c7c7c7c
     eor r0, r1, r1, asr #1 /* accumulate the result for reg[0] */
     eor r0, r0, r1, asr #2
@@ -593,6 +638,40 @@
 .endm
 
 
+.macro lbox
+    /*
+     * Execution of the Lbox on the state:
+     * r2..r5: state
+     * r0, r1, r10..r12: temporary registers
+     */
+     lbox_round_1
+     lbox_round_2
+     lbox_round_3
+     lbox_round_4
+     lbox_round_5
+     lbox_round_6
+     lbox_round_7
+     lbox_round_8
+.endm
+
+
+.macro lbox_inv
+    /*
+     * Execution of the inverse Lbox on the state:
+     * r2..r5: state
+     * r0, r1, r10..r12: temporary registers
+     */
+     lbox_round_8
+     lbox_round_7
+     lbox_round_6
+     lbox_round_5
+     lbox_round_4
+     lbox_round_3
+     lbox_round_2
+     lbox_round_1
+.endm
+
+
 .macro shiftcolumns_inner reg
     and r0, \reg, #0xc0c0c0c0
     and r1, \reg, #0x30303030
@@ -616,16 +695,51 @@
      * r1: expr values (... & ...)
      *
      * for i in range(4):
-     *     tmp[i]  =     state[i] & 0xc0c0c0c0
-     *     tmp[i] |= ror(state[i] & 0x30303030, 8)
-     *     tmp[i] |= ror(state[i] & 0x0c0c0c0c, 16)
-     *     tmp[i] |= ror(state[i] & 0x03030303, 24)
-     *     state[i] = tmp[i]
+     *     state[i]  =     state[i] & 0xc0c0c0c0
+     *     state[i] |= ror(state[i] & 0x30303030, 8)
+     *     state[i] |= ror(state[i] & 0x0c0c0c0c, 16)
+     *     state[i] |= ror(state[i] & 0x03030303, 24)
      */
      shiftcolumns_inner r2
      shiftcolumns_inner r3
      shiftcolumns_inner r4
      shiftcolumns_inner r5
+.endm
+
+
+.macro shiftcolumns_inv_inner reg
+    and r0, \reg, #0xc0c0c0c0
+    and r1, \reg, #0x30303030
+    orr r0, r0, r1, ror #24
+    and r1, \reg, #0x0c0c0c0c
+    orr r0, r0, r1, ror #16
+    and r1, \reg, #0x03030303
+    orr \reg, r0, r1, ror #8
+.endm
+
+
+.macro shiftcolumns_inv
+    /*
+     * Do inverse shiftcolumns operation, very symmetric with normal
+     * shiftcolumns operation.
+     *
+     * r2..r5: state
+     * r0, r1: temporary registers
+     *
+     * Equivalent python code:
+     * r0: tmp[i]
+     * r1: expr values (... & ...)
+     *
+     * for i in range(4):
+     *     state[i]  =     state[i] & 0xc0c0c0c0
+     *     state[i] |= ror(state[i] & 0x30303030, 24)
+     *     state[i] |= ror(state[i] & 0x0c0c0c0c, 16)
+     *     state[i] |= ror(state[i] & 0x03030303, 8)
+     */
+     shiftcolumns_inv_inner r2
+     shiftcolumns_inv_inner r3
+     shiftcolumns_inv_inner r4
+     shiftcolumns_inv_inner r5
 .endm
 
 
@@ -643,14 +757,29 @@
 .endm
 
 
-mysterion:
+.macro mysterion_inv_round round_number
+    /*
+     * Perform one round of the Mysterion block cipher
+     * r2..r5: state
+     * r0, r1, r6..r12: temporary registers
+     */
+    add_key
+    add_const ((13)-\round_number)
+    shiftcolumns_inv
+    lbox_inv
+    sbox_inv
+.endm
+
+
+mysterion_encrypt:
     /*
      * Do Mysterion block encryption on msg pointed to by r0, with the values
-     * pointed to by r1 as key. This function follows the C calling convention.
+     * pointed to by r1 as key.
+
      */
 
     push {r4-r12}
-    byteslice_msg
+    byteslice_state
     byteslice_key
 
     /* Spill the ptr to the output buffer to the stack, because we need a
@@ -671,6 +800,43 @@ mysterion:
     mysterion_round 10
     mysterion_round 11
     mysterion_round 12
+
+    /* Put the ciphertext back in the input buffer */
+    pop {r0}
+    unbyteslice_state
+
+    pop {r4-r12}
+    bx lr
+
+
+mysterion_decrypt:
+    /*
+     * Do Mysterion block decryption on ciphertext pointed to by r0, with the
+     * buffer pointed to by r1 as key.
+     */
+
+    push {r4-r12}
+    byteslice_state
+    byteslice_key
+
+    /* Spill the ptr to the output buffer to the stack, because we need a
+    register for temporary values */
+    push {r0}
+
+    /* From this point [r2..r9] are in use */
+    mysterion_inv_round 1
+    mysterion_inv_round 2
+    mysterion_inv_round 3
+    mysterion_inv_round 4
+    mysterion_inv_round 5
+    mysterion_inv_round 6
+    mysterion_inv_round 7
+    mysterion_inv_round 8
+    mysterion_inv_round 9
+    mysterion_inv_round 10
+    mysterion_inv_round 11
+    mysterion_inv_round 12
+    add_key
 
     /* Put the ciphertext back in the input buffer */
     pop {r0}
