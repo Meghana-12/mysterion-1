@@ -61,30 +61,29 @@
     ldrb r12, [r1, #11]
     ldrb r11, [r1, #10]
     ldrb r10, [r1, #9]
+    ldrb r0,  [r1, #8]
     orr r9, r9, r12, lsl #8
     orr r8, r8, r11, lsl #8
     orr r7, r7, r10, lsl #8
-
-    ldrb r12, [r1, #8]
-    ldrb r11, [r1, #7]
-    ldrb r10, [r1, #6]
-    orr r6, r6, r12, lsl #8
-    orr r9, r9, r11, lsl #16
-    orr r8, r8, r10, lsl #16
-
-    ldrb r12, [r1, #5]
-    ldrb r11, [r1, #4]
-    ldrb r10, [r1, #3]
-    orr r7, r7, r12, lsl #16
-    orr r6, r6, r11, lsl #16
-    orr r9, r9, r10, lsl #24
-
-    ldrb r12, [r1, #2]
-    ldrb r11, [r1, #1]
-    ldrb r10, [r1, #0]
-    orr r8, r8, r12, lsl #24
-    orr r7, r7, r11, lsl #24
-    orr r6, r6, r10, lsl #24
+    orr r6, r6, r0,  lsl #8
+    
+    ldrb r12, [r1, #7]
+    ldrb r11, [r1, #6]
+    ldrb r10, [r1, #5]
+    ldrb r0,  [r1, #4]
+    orr r9, r9, r12, lsl #16
+    orr r8, r8, r11, lsl #16
+    orr r7, r7, r10, lsl #16
+    orr r6, r6, r0,  lsl #16
+    
+    ldrb r12, [r1, #3]
+    ldrb r11, [r1, #2]
+    ldrb r10, [r1, #1]
+    ldrb r0,  [r1, #0]
+    orr r9, r9, r12, lsl #24
+    orr r8, r8, r11, lsl #24
+    orr r7, r7, r10, lsl #24
+    orr r6, r6, r0,  lsl #24
 .endm
 
 
@@ -803,13 +802,14 @@ mysterion_decrypt:
      * buffer pointed to by r1 as key.
      */
 
+    /* Spill the ptr to the output buffer to the stack, because we need a
+    register for temporary values. Other temporary registers are pushed
+    due to the C calling convention. */
     push {r4-r12}
+    push {r0}
+    
     byteslice_state
     byteslice_key
-
-    /* Spill the ptr to the output buffer to the stack, because we need a
-    register for temporary values */
-    push {r0}
 
     /* From this point [r2..r9] are in use */
     mysterion_inv_round 1
@@ -826,7 +826,7 @@ mysterion_decrypt:
     mysterion_inv_round 12
     add_key
 
-    /* Put the plaintext back in the input buffer */
+    /* Put the plaintext address back in the input buffer */
     pop {r0}
     unbyteslice_state
 
