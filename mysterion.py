@@ -196,16 +196,40 @@ def lbox2(state):
 
 
 def lbox3(state):
+    """
+    >>> x = [0, 0, 0, 0, 0, 0, 0, 1]
+    >>> y = unbitslice_32x4(lbox3(bitslice_32x4(x * 4)))
+    >>> y == lbox(x) * 4 or (y[:8], lbox(x))
+    True
+
+    >>> x = [1, 0, 0, 0, 0, 0, 0, 0]
+    >>> y = unbitslice_32x4(lbox3(bitslice_32x4(x * 4)))
+    >>> y == lbox(x) * 4 or (y[:8], lbox(x))
+    True
+
+    >>> x = list(range(1,9))
+    >>> y = unbitslice_32x4(lbox3(bitslice_32x4(x * 4)))
+    >>> y == lbox(x) * 4 or (y[:8], lbox(x))
+    True
+
+    Check that the bitsliced polynomial matches to polynomials as needed in the
+    state's "bytesliced" representation.
+    >>> x = [0] * 25 + [0b1000, 0b0011, 0b1111, 0b0101, 0b1111, 0b0011, 0b1000]
+    >>> bitslice_32x4(x) == [0b01010101, 0b00011100, 0b00110110, 0b00111110]
+    True
+    """
     mat = [
         [0b0001, 0b1000, 0b0011, 0b1111, 0b0101, 0b1111, 0b0011, 0b1000],
         [0b1000, 0b1101, 0b0011, 0b0010, 0b0001, 0b0100, 0b0100, 0b1111],
-        [0b1111, 0b1101, 0b1111, 0b1001, 0b0100, 0b1011, 0b0110, 0b0101],
+        [0b1111, 0b1001, 0b1111, 0b1001, 0b0100, 0b1011, 0b0110, 0b0101],
         [0b0101, 0b0001, 0b0110, 0b1001, 0b1011, 0b0010, 0b0100, 0b1000],
         [0b1000, 0b1001, 0b1010, 0b0111, 0b0111, 0b1010, 0b1001, 0b1000],
         [0b1000, 0b0100, 0b0010, 0b1011, 0b1001, 0b0110, 0b0001, 0b0101],
         [0b0101, 0b0110, 0b1011, 0b0100, 0b1001, 0b1111, 0b1001, 0b1111],
         [0b1111, 0b0100, 0b0100, 0b0001, 0b0010, 0b0011, 0b1101, 0b1000]
     ]
+    # mat = [list(reversed(x)) for x in reversed(mat)] (inverse matrix)
+
     for i in range(8):
         mat[i] = mat[i][i:] + mat[i][:i]
     mat = zip(*mat)
@@ -213,7 +237,6 @@ def lbox3(state):
 
     acc = [0] * 4
     for i in range(8):
-        print(_gf16_mul2(mat[i][:], state[:]), acc)
         for j, x in enumerate(_gf16_mul2(mat[i][:], state[:])):
             acc[j] ^= x
         # rotate state left inside bytes by 1

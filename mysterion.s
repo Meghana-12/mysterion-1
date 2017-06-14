@@ -66,7 +66,7 @@
     orr r8, r8, r11, lsl #8
     orr r7, r7, r10, lsl #8
     orr r6, r6, r0,  lsl #8
-    
+
     ldrb r12, [r1, #7]
     ldrb r11, [r1, #6]
     ldrb r10, [r1, #5]
@@ -75,7 +75,7 @@
     orr r8, r8, r11, lsl #16
     orr r7, r7, r10, lsl #16
     orr r6, r6, r0,  lsl #16
-    
+
     ldrb r12, [r1, #3]
     ldrb r11, [r1, #2]
     ldrb r10, [r1, #1]
@@ -245,383 +245,75 @@
 .endm
 
 
-.macro gf16_mul_lit p0,p1,p2,p3
+.macro gf16_mul_lit ra,rb,rc,rd,p0,p1,p2,p3
     /*
      * Bitsliced multiplication of [r2..r5] with the literal polynomials
      * specified in p0,p1,p2,p3, modulo x^4 + x + 1.
      *
      * p0,p1,p2,p3: literal bitsliced polynomial
      * r2..r5: input (unaltered)
-     * r1,r10..12: output
+     * ra..rd: output
      * r0: temporary register
      */
-    and r1,  r5, #(\p0)
-    and r10, r5, #(\p1)
-    and r11, r5, #(\p2)
-    and r12, r5, #(\p3)
+    and \ra,  r5, #(\p0)
+    and \rb, r5, #(\p1)
+    and \rc, r5, #(\p2)
+    and \rd, r5, #(\p3)
 
     and r0,  r4,  #(\p1)
-    eor r1,  r1,  r0
+    eor \ra,  \ra,  r0
     and r0,  r4,  #(\p2)
-    eor r10, r10, r0
+    eor \rb, \rb, r0
     and r0,  r4,  #((\p3)^\p0)
-    eor r11, r11, r0
+    eor \rc, \rc, r0
     and r0,  r4,  #(\p0)
-    eor r12, r12, r0
+    eor \rd, \rd, r0
 
     and r0,  r3,  #(\p2)
-    eor r1,  r1,  r0
+    eor \ra,  \ra,  r0
     and r0,  r3,  #((\p3)^\p0)
-    eor r10, r10, r0
+    eor \rb, \rb, r0
     and r0,  r3,  #((\p0)^\p1)
-    eor r11, r11, r0
+    eor \rc, \rc, r0
     and r0,  r3,  #(\p1)
-    eor r12, r12, r0
+    eor \rd, \rd, r0
 
     and r0,  r2,  #((\p3)^\p0)
-    eor r1,  r1,  r0
+    eor \ra,  \ra,  r0
     and r0,  r2,  #((\p0)^\p1)
-    eor r10, r10, r0
+    eor \rb, \rb, r0
     and r0,  r2,  #((\p1)^\p2)
-    eor r11, r11, r0
+    eor \rc, \rc, r0
     and r0,  r2,  #(\p2)
-    eor r12, r12, r0
+    eor \rd, \rd, r0
 .endm
 
 
-.macro lbox_round_1
-    /* Lbox round 1 */
-    gf16_mul_lit 0x55555555,0x1c1c1c1c,0x36363636,0x3e3e3e3e
-    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r0, r0, r1, lsl #2
-    eor r0, r0, r1, lsl #3
-    eor r0, r0, r1, lsl #4
-    eor r0, r0, r1, lsl #5
-    eor r0, r0, r1, lsl #6
-    eor r0, r0, r1, lsl #7
-    and r0, r0, #0x80808080 /* masked addition of first polynomial */
-    eor r2, r2, r0
-    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r0, r0, r10, lsl #2
-    eor r0, r0, r10, lsl #3
-    eor r0, r0, r10, lsl #4
-    eor r0, r0, r10, lsl #5
-    eor r0, r0, r10, lsl #6
-    eor r0, r0, r10, lsl #7
-    and r0, r0, #0x80808080 /* masked addition of first polynomial */
-    eor r3, r3, r0
-    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r0, r0, r11, lsl #2
-    eor r0, r0, r11, lsl #3
-    eor r0, r0, r11, lsl #4
-    eor r0, r0, r11, lsl #5
-    eor r0, r0, r11, lsl #6
-    eor r0, r0, r11, lsl #7
-    and r0, r0, #0x80808080 /* masked addition of first polynomial */
-    eor r4, r4, r0
-    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r0, r0, r12, lsl #2
-    eor r0, r0, r12, lsl #3
-    eor r0, r0, r12, lsl #4
-    eor r0, r0, r12, lsl #5
-    eor r0, r0, r12, lsl #6
-    eor r0, r0, r12, lsl #7
-    and r0, r0, #0x80808080 /* masked addition of first polynomial */
-    eor r5, r5, r0
-.endm
+.macro lbox_rotate_left
+    /*
+     * For all registers in r2..r5 shift the value one to the left *inside*
+     * the byte.
+     * r1, r10..r12: temporary registers
+     */
+    and  r1, r2, #0x7f7f7f7f
+    and r10, r3, #0x7f7f7f7f
+    and r11, r4, #0x7f7f7f7f
+    and r12, r5, #0x7f7f7f7f
 
+    and r2, r2, #0x80808080
+    and r3, r3, #0x80808080
+    and r4, r4, #0x80808080
+    and r5, r5, #0x80808080
 
-.macro lbox_round_2
-    /* Lbox round 2 */
-    gf16_mul_lit 0xaaaaaaaa,0x0e0e0e0e,0x1b1b1b1b,0x1f1f1f1f
-    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r0, r0, r1, lsl #2
-    eor r0, r0, r1, lsl #3
-    eor r0, r0, r1, lsl #4
-    eor r0, r0, r1, lsl #5
-    eor r0, r0, r1, lsl #6
-    eor r0, r0, r1, asr #1
-    and r0, r0, #0x40404040 /* masked addition of first polynomial */
-    eor r2, r2, r0
-    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r0, r0, r10, lsl #2
-    eor r0, r0, r10, lsl #3
-    eor r0, r0, r10, lsl #4
-    eor r0, r0, r10, lsl #5
-    eor r0, r0, r10, lsl #6
-    eor r0, r0, r10, asr #1
-    and r0, r0, #0x40404040 /* masked addition of first polynomial */
-    eor r3, r3, r0
-    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r0, r0, r11, lsl #2
-    eor r0, r0, r11, lsl #3
-    eor r0, r0, r11, lsl #4
-    eor r0, r0, r11, lsl #5
-    eor r0, r0, r11, lsl #6
-    eor r0, r0, r11, asr #1
-    and r0, r0, #0x40404040 /* masked addition of first polynomial */
-    eor r4, r4, r0
-    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r0, r0, r12, lsl #2
-    eor r0, r0, r12, lsl #3
-    eor r0, r0, r12, lsl #4
-    eor r0, r0, r12, lsl #5
-    eor r0, r0, r12, lsl #6
-    eor r0, r0, r12, asr #1
-    and r0, r0, #0x40404040 /* masked addition of first polynomial */
-    eor r5, r5, r0
-.endm
+    lsr r2, r2, #7
+    lsr r3, r3, #7
+    lsr r4, r4, #7
+    lsr r5, r5, #7
 
-
-.macro lbox_round_3
-    /* Lbox round 3 */
-    gf16_mul_lit 0x55555555,0x07070707,0x8d8d8d8d,0x8f8f8f8f
-    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r0, r0, r1, lsl #2
-    eor r0, r0, r1, lsl #3
-    eor r0, r0, r1, lsl #4
-    eor r0, r0, r1, lsl #5
-    eor r0, r0, r1, asr #1
-    eor r0, r0, r1, asr #2
-    and r0, r0, #0x20202020 /* masked addition of first polynomial */
-    eor r2, r2, r0
-    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r0, r0, r10, lsl #2
-    eor r0, r0, r10, lsl #3
-    eor r0, r0, r10, lsl #4
-    eor r0, r0, r10, lsl #5
-    eor r0, r0, r10, asr #1
-    eor r0, r0, r10, asr #2
-    and r0, r0, #0x20202020 /* masked addition of first polynomial */
-    eor r3, r3, r0
-    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r0, r0, r11, lsl #2
-    eor r0, r0, r11, lsl #3
-    eor r0, r0, r11, lsl #4
-    eor r0, r0, r11, lsl #5
-    eor r0, r0, r11, asr #1
-    eor r0, r0, r11, asr #2
-    and r0, r0, #0x20202020 /* masked addition of first polynomial */
-    eor r4, r4, r0
-    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r0, r0, r12, lsl #2
-    eor r0, r0, r12, lsl #3
-    eor r0, r0, r12, lsl #4
-    eor r0, r0, r12, lsl #5
-    eor r0, r0, r12, asr #1
-    eor r0, r0, r12, asr #2
-    and r0, r0, #0x20202020 /* masked addition of first polynomial */
-    eor r5, r5, r0
-.endm
-
-
-.macro lbox_round_4
-    /* Lbox round 4 */
-    gf16_mul_lit 0xaaaaaaaa,0x83838383,0xc6c6c6c6,0xc7c7c7c7
-    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r0, r0, r1, lsl #2
-    eor r0, r0, r1, lsl #3
-    eor r0, r0, r1, lsl #4
-    eor r0, r0, r1, asr #1
-    eor r0, r0, r1, asr #2
-    eor r0, r0, r1, asr #3
-    and r0, r0, #0x10101010 /* masked addition of first polynomial */
-    eor r2, r2, r0
-    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r0, r0, r10, lsl #2
-    eor r0, r0, r10, lsl #3
-    eor r0, r0, r10, lsl #4
-    eor r0, r0, r10, asr #1
-    eor r0, r0, r10, asr #2
-    eor r0, r0, r10, asr #3
-    and r0, r0, #0x10101010 /* masked addition of first polynomial */
-    eor r3, r3, r0
-    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r0, r0, r11, lsl #2
-    eor r0, r0, r11, lsl #3
-    eor r0, r0, r11, lsl #4
-    eor r0, r0, r11, asr #1
-    eor r0, r0, r11, asr #2
-    eor r0, r0, r11, asr #3
-    and r0, r0, #0x10101010 /* masked addition of first polynomial */
-    eor r4, r4, r0
-    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r0, r0, r12, lsl #2
-    eor r0, r0, r12, lsl #3
-    eor r0, r0, r12, lsl #4
-    eor r0, r0, r12, asr #1
-    eor r0, r0, r12, asr #2
-    eor r0, r0, r12, asr #3
-    and r0, r0, #0x10101010 /* masked addition of first polynomial */
-    eor r5, r5, r0
-.endm
-
-
-.macro lbox_round_5
-    /* Lbox round 5 */
-    gf16_mul_lit 0x55555555,0xc1c1c1c1,0x63636363,0xe3e3e3e3
-    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r0, r0, r1, lsl #2
-    eor r0, r0, r1, lsl #3
-    eor r0, r0, r1, asr #1
-    eor r0, r0, r1, asr #2
-    eor r0, r0, r1, asr #3
-    eor r0, r0, r1, asr #4
-    and r0, r0, #0x8080808 /* masked addition of first polynomial */
-    eor r2, r2, r0
-    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r0, r0, r10, lsl #2
-    eor r0, r0, r10, lsl #3
-    eor r0, r0, r10, asr #1
-    eor r0, r0, r10, asr #2
-    eor r0, r0, r10, asr #3
-    eor r0, r0, r10, asr #4
-    and r0, r0, #0x8080808 /* masked addition of first polynomial */
-    eor r3, r3, r0
-    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r0, r0, r11, lsl #2
-    eor r0, r0, r11, lsl #3
-    eor r0, r0, r11, asr #1
-    eor r0, r0, r11, asr #2
-    eor r0, r0, r11, asr #3
-    eor r0, r0, r11, asr #4
-    and r0, r0, #0x8080808 /* masked addition of first polynomial */
-    eor r4, r4, r0
-    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r0, r0, r12, lsl #2
-    eor r0, r0, r12, lsl #3
-    eor r0, r0, r12, asr #1
-    eor r0, r0, r12, asr #2
-    eor r0, r0, r12, asr #3
-    eor r0, r0, r12, asr #4
-    and r0, r0, #0x8080808 /* masked addition of first polynomial */
-    eor r5, r5, r0
-.endm
-
-
-.macro lbox_round_6
-    /* Lbox round 6 */
-    gf16_mul_lit 0xaaaaaaaa,0xe0e0e0e0,0xb1b1b1b1,0xf1f1f1f1
-    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r0, r0, r1, lsl #2
-    eor r0, r0, r1, asr #1
-    eor r0, r0, r1, asr #2
-    eor r0, r0, r1, asr #3
-    eor r0, r0, r1, asr #4
-    eor r0, r0, r1, asr #5
-    and r0, r0, #0x04040404 /* masked addition of first polynomial */
-    eor r2, r2, r0
-    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r0, r0, r10, lsl #2
-    eor r0, r0, r10, asr #1
-    eor r0, r0, r10, asr #2
-    eor r0, r0, r10, asr #3
-    eor r0, r0, r10, asr #4
-    eor r0, r0, r10, asr #5
-    and r0, r0, #0x04040404 /* masked addition of first polynomial */
-    eor r3, r3, r0
-    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r0, r0, r11, lsl #2
-    eor r0, r0, r11, asr #1
-    eor r0, r0, r11, asr #2
-    eor r0, r0, r11, asr #3
-    eor r0, r0, r11, asr #4
-    eor r0, r0, r11, asr #5
-    and r0, r0, #0x04040404 /* masked addition of first polynomial */
-    eor r4, r4, r0
-    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r0, r0, r12, lsl #2
-    eor r0, r0, r12, asr #1
-    eor r0, r0, r12, asr #2
-    eor r0, r0, r12, asr #3
-    eor r0, r0, r12, asr #4
-    eor r0, r0, r12, asr #5
-    and r0, r0, #0x04040404 /* masked addition of first polynomial */
-    eor r5, r5, r0
-.endm
-
-
-.macro lbox_round_7
-    /* Lbox round 7 */
-    gf16_mul_lit 0x55555555,0x70707070,0xd8d8d8d8,0xf8f8f8f8
-    eor r0, r1, r1, lsl #1 /* accumulate the result for reg[0] */
-    eor r0, r0, r1, asr #1
-    eor r0, r0, r1, asr #2
-    eor r0, r0, r1, asr #3
-    eor r0, r0, r1, asr #4
-    eor r0, r0, r1, asr #5
-    eor r0, r0, r1, asr #6
-    and r0, r0, #0x02020202 /* masked addition of first polynomial */
-    eor r2, r2, r0
-    eor r0, r10, r10, lsl #1 /* accumulate the result for reg[1] */
-    eor r0, r0, r10, asr #1
-    eor r0, r0, r10, asr #2
-    eor r0, r0, r10, asr #3
-    eor r0, r0, r10, asr #4
-    eor r0, r0, r10, asr #5
-    eor r0, r0, r10, asr #6
-    and r0, r0, #0x02020202 /* masked addition of first polynomial */
-    eor r3, r3, r0
-    eor r0, r11, r11, lsl #1 /* accumulate the result for reg[2] */
-    eor r0, r0, r11, asr #1
-    eor r0, r0, r11, asr #2
-    eor r0, r0, r11, asr #3
-    eor r0, r0, r11, asr #4
-    eor r0, r0, r11, asr #5
-    eor r0, r0, r11, asr #6
-    and r0, r0, #0x02020202 /* masked addition of first polynomial */
-    eor r4, r4, r0
-    eor r0, r12, r12, lsl #1 /* accumulate the result for reg[3] */
-    eor r0, r0, r12, asr #1
-    eor r0, r0, r12, asr #2
-    eor r0, r0, r12, asr #3
-    eor r0, r0, r12, asr #4
-    eor r0, r0, r12, asr #5
-    eor r0, r0, r12, asr #6
-    and r0, r0, #0x02020202 /* masked addition of first polynomial */
-    eor r5, r5, r0
-.endm
-
-
-.macro lbox_round_8
-    /* Lbox round 8 */
-    gf16_mul_lit 0xaaaaaaaa,0x38383838,0x6c6c6c6c,0x7c7c7c7c
-    eor r0, r1, r1, asr #1 /* accumulate the result for reg[0] */
-    eor r0, r0, r1, asr #2
-    eor r0, r0, r1, asr #3
-    eor r0, r0, r1, asr #4
-    eor r0, r0, r1, asr #5
-    eor r0, r0, r1, asr #6
-    eor r0, r0, r1, asr #7
-    and r0, r0, #0x01010101 /* masked addition of first polynomial */
-    eor r2, r2, r0
-    eor r0, r10, r10, asr #1 /* accumulate the result for reg[1] */
-    eor r0, r0, r10, asr #2
-    eor r0, r0, r10, asr #3
-    eor r0, r0, r10, asr #4
-    eor r0, r0, r10, asr #5
-    eor r0, r0, r10, asr #6
-    eor r0, r0, r10, asr #7
-    and r0, r0, #0x01010101 /* masked addition of first polynomial */
-    eor r3, r3, r0
-    eor r0, r11, r11, asr #1 /* accumulate the result for reg[2] */
-    eor r0, r0, r11, asr #2
-    eor r0, r0, r11, asr #3
-    eor r0, r0, r11, asr #4
-    eor r0, r0, r11, asr #5
-    eor r0, r0, r11, asr #6
-    eor r0, r0, r11, asr #7
-    and r0, r0, #0x01010101 /* masked addition of first polynomial */
-    eor r4, r4, r0
-    eor r0, r12, r12, asr #1 /* accumulate the result for reg[3] */
-    eor r0, r0, r12, asr #2
-    eor r0, r0, r12, asr #3
-    eor r0, r0, r12, asr #4
-    eor r0, r0, r12, asr #5
-    eor r0, r0, r12, asr #6
-    eor r0, r0, r12, asr #7
-    and r0, r0, #0x01010101 /* masked addition of first polynomial */
-    eor r5, r5, r0
+    eor r2, r2, r1, lsl #1
+    eor r3, r3, r10, lsl #1
+    eor r4, r4, r11, lsl #1
+    eor r5, r5, r12, lsl #1
 .endm
 
 
@@ -629,16 +321,65 @@
     /*
      * Execution of the Lbox on the state:
      * r2..r5: state
+     * r6..r9: temporary registers containing accumulator
      * r0, r1, r10..r12: temporary registers
      */
-     lbox_round_1
-     lbox_round_2
-     lbox_round_3
-     lbox_round_4
-     lbox_round_5
-     lbox_round_6
-     lbox_round_7
-     lbox_round_8
+
+    // push the key, we need the registers
+    push {r6-r9}
+
+    gf16_mul_lit r6,r7,r8,r9, 0x73737373, 0x6c6c6c6c, 0x2c2c2c2c, 0xfafafafa
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0xbbbbbbbb, 0x03030303, 0x5b5b5b5b, 0x77777777
+    eor r6, r6, r1
+    eor r7, r7, r10
+    eor r8, r8, r11
+    eor r9, r9, r12
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0x08080808, 0x27272727, 0xd0d0d0d0, 0x8e8e8e8e
+    eor r6, r6, r1
+    eor r7, r7, r10
+    eor r8, r8, r11
+    eor r9, r9, r12
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0xacacacac, 0x93939393, 0xa2a2a2a2, 0xe0e0e0e0
+    eor r6, r6, r1
+    eor r7, r7, r10
+    eor r8, r8, r11
+    eor r9, r9, r12
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0x1a1a1a1a, 0xe4e4e4e4, 0x22222222, 0x83838383
+    eor r6, r6, r1
+    eor r7, r7, r10
+    eor r8, r8, r11
+    eor r9, r9, r12
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0x88888888, 0xf2f2f2f2, 0x85858585, 0xb8b8b8b8
+    eor r6, r6, r1
+    eor r7, r7, r10
+    eor r8, r8, r11
+    eor r9, r9, r12
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0x6e6e6e6e, 0x60606060, 0xedededed, 0xf7f7f7f7
+    eor r6, r6, r1
+    eor r7, r7, r10
+    eor r8, r8, r11
+    eor r9, r9, r12
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0xe7e7e7e7, 0x1b1b1b1b, 0x1a1a1a1a, 0x2f2f2f2f
+    eor r2, r6, r1
+    eor r3, r7, r10
+    eor r4, r8, r11
+    eor r5, r9, r12
+
+    pop {r6-r9}
 .endm
 
 
@@ -646,16 +387,65 @@
     /*
      * Execution of the inverse Lbox on the state:
      * r2..r5: state
+     * r6..r9: temporary registers containing accumulator
      * r0, r1, r10..r12: temporary registers
      */
-     lbox_round_8
-     lbox_round_7
-     lbox_round_6
-     lbox_round_5
-     lbox_round_4
-     lbox_round_3
-     lbox_round_2
-     lbox_round_1
+
+    // push the key, we need the registers
+    push {r6-r9}
+
+    gf16_mul_lit r6,r7,r8,r9, 0xcececece, 0x36363636, 0x34343434, 0x5f5f5f5f
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0xe7e7e7e7, 0xd8d8d8d8, 0x58585858, 0xf4f4f4f4
+    eor r6, r6, r1
+    eor r7, r7, r10
+    eor r8, r8, r11
+    eor r9, r9, r12
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0x76767676, 0x06060606, 0xb7b7b7b7, 0xefefefef
+    eor r6, r6, r1
+    eor r7, r7, r10
+    eor r8, r8, r11
+    eor r9, r9, r12
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0x11111111, 0x4f4f4f4f, 0xa1a1a1a1, 0x1d1d1d1d
+    eor r6, r6, r1
+    eor r7, r7, r10
+    eor r8, r8, r11
+    eor r9, r9, r12
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0x58585858, 0x27272727, 0x44444444, 0xc1c1c1c1
+    eor r6, r6, r1
+    eor r7, r7, r10
+    eor r8, r8, r11
+    eor r9, r9, r12
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0x35353535, 0xc9c9c9c9, 0x45454545, 0x07070707
+    eor r6, r6, r1
+    eor r7, r7, r10
+    eor r8, r8, r11
+    eor r9, r9, r12
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0x10101010, 0xe4e4e4e4, 0x0b0b0b0b, 0x71717171
+    eor r6, r6, r1
+    eor r7, r7, r10
+    eor r8, r8, r11
+    eor r9, r9, r12
+    lbox_rotate_left
+
+    gf16_mul_lit r1,r10,r11,r12, 0xdddddddd, 0xc0c0c0c0, 0xdadadada, 0xeeeeeeee
+    eor r2, r6, r1
+    eor r3, r7, r10
+    eor r4, r8, r11
+    eor r5, r9, r12
+
+    pop {r6-r9}
 .endm
 
 
@@ -770,7 +560,7 @@ mysterion_encrypt:
     due to the C calling convention. */
     push {r4-r12}
     push {r0}
-    
+
     byteslice_state
     byteslice_key
 
@@ -808,7 +598,7 @@ mysterion_decrypt:
     due to the C calling convention. */
     push {r4-r12}
     push {r0}
-    
+
     byteslice_state
     byteslice_key
 
