@@ -195,6 +195,32 @@ def lbox2(state):
     return state
 
 
+def lbox3(state):
+    mat = [
+        [0b0001, 0b1000, 0b0011, 0b1111, 0b0101, 0b1111, 0b0011, 0b1000],
+        [0b1000, 0b1101, 0b0011, 0b0010, 0b0001, 0b0100, 0b0100, 0b1111],
+        [0b1111, 0b1101, 0b1111, 0b1001, 0b0100, 0b1011, 0b0110, 0b0101],
+        [0b0101, 0b0001, 0b0110, 0b1001, 0b1011, 0b0010, 0b0100, 0b1000],
+        [0b1000, 0b1001, 0b1010, 0b0111, 0b0111, 0b1010, 0b1001, 0b1000],
+        [0b1000, 0b0100, 0b0010, 0b1011, 0b1001, 0b0110, 0b0001, 0b0101],
+        [0b0101, 0b0110, 0b1011, 0b0100, 0b1001, 0b1111, 0b1001, 0b1111],
+        [0b1111, 0b0100, 0b0100, 0b0001, 0b0010, 0b0011, 0b1101, 0b1000]
+    ]
+    for i in range(8):
+        mat[i] = mat[i][i:] + mat[i][:i]
+    mat = zip(*mat)
+    mat = [bitslice_32x4(row * 4) for row in mat]
+
+    acc = [0] * 4
+    for i in range(8):
+        print(_gf16_mul2(mat[i][:], state[:]), acc)
+        for j, x in enumerate(_gf16_mul2(mat[i][:], state[:])):
+            acc[j] ^= x
+        # rotate state left inside bytes by 1
+        state = [((x << 1) & 0xfe) | (x >> 7) for x in state]
+    return acc
+
+
 def lbox2_inv(state):
     """
     >>> lbox2([0, 0, 0, 1])
