@@ -765,13 +765,14 @@ mysterion_encrypt:
 
      */
 
+    /* Spill the ptr to the output buffer to the stack, because we need a
+    register for temporary values. Other temporary registers are pushed
+    due to the C calling convention. */
     push {r4-r12}
+    push {r0}
+    
     byteslice_state
     byteslice_key
-
-    /* Spill the ptr to the output buffer to the stack, because we need a
-    register for temporary values */
-    push {r0}
 
     /* From this point [r2..r9] are in use */
     add_key
