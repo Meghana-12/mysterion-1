@@ -217,7 +217,7 @@ def lbox3(state):
         for j, x in enumerate(_gf16_mul2(mat[i][:], state[:])):
             acc[j] ^= x
         # rotate state left inside bytes by 1
-        state = [((x << 1) & 0xfe) | (x >> 7) for x in state]
+        state = [((x << 1) & 0xfefefefe) | (x >> 7) & 0x01010101 for x in state]
     return acc
 
 
